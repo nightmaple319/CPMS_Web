@@ -1,0 +1,66 @@
+@model IEnumerable<CPMS_Web.Models.StockCountReport>
+@{
+    ViewData["Title"] = "盤點報表";
+}
+
+<div class="container-fluid">
+    <h2 class="mb-4">@ViewData["Title"]</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="startDate" class="form-label">開始日期</label>
+                    <input type="date" class="form-control" id="startDate" name="startDate" 
+                           value="@(ViewBag.StartDate ?? DateTime.Today.AddMonths(-1).ToString("yyyy-MM-dd"))">
+                </div>
+                <div class="col-md-4">
+                    <label for="endDate" class="form-label">結束日期</label>
+                    <input type="date" class="form-control" id="endDate" name="endDate" 
+                           value="@(ViewBag.EndDate ?? DateTime.Today.ToString("yyyy-MM-dd"))">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">查詢</button>
+                    <a href="@Url.Action("ExportStockCountReport", new { startDate = ViewBag.StartDate, endDate = ViewBag.EndDate })" 
+                       class="btn btn-success">匯出 Excel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>盤點日期</th>
+                            <th>盤點單號</th>
+                            <th>盤點人員</th>
+                            <th>狀態</th>
+                            <th>項目數量</th>
+                            <th>系統數量</th>
+                            <th>實際數量</th>
+                            <th>差異</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.CountDate.ToString("yyyy-MM-dd")</td>
+                                <td>@item.CountNumber</td>
+                                <td>@item.CounterName</td>
+                                <td>@item.Status</td>
+                                <td>@item.TotalItems</td>
+                                <td>@item.SystemQuantity</td>
+                                <td>@item.ActualQuantity</td>
+                                <td class="@(item.Variance != 0 ? "text-danger" : "text-success")">@item.Variance</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div> 

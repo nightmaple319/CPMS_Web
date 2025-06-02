@@ -1,0 +1,39 @@
+@{
+    ViewData["Title"] = "報表管理";
+}
+
+<div class="container-fluid">
+    <h2 class="mb-4">@ViewData["Title"]</h2>
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">庫存報表</h5>
+                    <p class="card-text">查看庫存交易記錄和庫存狀態報表。</p>
+                    <a href="@Url.Action("InventoryReport")" class="btn btn-primary">查看報表</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">物料申請報表</h5>
+                    <p class="card-text">查看物料申請記錄和統計報表。</p>
+                    <a href="@Url.Action("MaterialRequestReport")" class="btn btn-primary">查看報表</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">盤點報表</h5>
+                    <p class="card-text">查看盤點記錄和差異分析報表。</p>
+                    <a href="@Url.Action("StockCountReport")" class="btn btn-primary">查看報表</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

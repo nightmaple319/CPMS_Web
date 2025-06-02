@@ -1,0 +1,66 @@
+@model IEnumerable<CPMS_Web.Models.InventoryReport>
+@{
+    ViewData["Title"] = "庫存報表";
+}
+
+<div class="container-fluid">
+    <h2 class="mb-4">@ViewData["Title"]</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="startDate" class="form-label">開始日期</label>
+                    <input type="date" class="form-control" id="startDate" name="startDate" 
+                           value="@(ViewBag.StartDate ?? DateTime.Today.AddMonths(-1).ToString("yyyy-MM-dd"))">
+                </div>
+                <div class="col-md-4">
+                    <label for="endDate" class="form-label">結束日期</label>
+                    <input type="date" class="form-control" id="endDate" name="endDate" 
+                           value="@(ViewBag.EndDate ?? DateTime.Today.ToString("yyyy-MM-dd"))">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">查詢</button>
+                    <a href="@Url.Action("ExportInventoryReport", new { startDate = ViewBag.StartDate, endDate = ViewBag.EndDate })" 
+                       class="btn btn-success">匯出 Excel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>交易日期</th>
+                            <th>料件編號</th>
+                            <th>料件名稱</th>
+                            <th>交易類型</th>
+                            <th>數量</th>
+                            <th>單價</th>
+                            <th>總金額</th>
+                            <th>備註</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.TransactionDate.ToString("yyyy-MM-dd")</td>
+                                <td>@item.SparePartId</td>
+                                <td>@item.SparePartName</td>
+                                <td>@item.TransactionType</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.UnitPrice.ToString("N2")</td>
+                                <td>@item.TotalAmount.ToString("N2")</td>
+                                <td>@item.Remarks</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div> 

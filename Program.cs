@@ -12,22 +12,23 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options => {
-    options.SignIn.RequireConfirmedAccount = false; // ¶}µoÀô¹Ò¤U¥i³]¬° false
+    options.SignIn.RequireConfirmedAccount = false; // ï¿½}ï¿½oï¿½ï¿½ï¿½Ò¤Uï¿½iï¿½]ï¿½ï¿½ false
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = false;
     options.Password.RequireLowercase = false;
 })
-.AddRoles<IdentityRole>() // ¥[¤J¨¤¦â¤ä´©
+.AddRoles<IdentityRole>() // ï¿½[ï¿½Jï¿½ï¿½ï¿½ï¿½ä´©
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// µù¥UÀ³¥Îµ{¦¡ªA°È
+// ï¿½ï¿½ï¿½Uï¿½ï¿½ï¿½Îµ{ï¿½ï¿½ï¿½Aï¿½ï¿½
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IMaterialRequestService, MaterialRequestService>();
 builder.Services.AddScoped<IStockCountService, StockCountService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
-// ¥[¤J MVC ¤ä´©
+//[J MVC ä´©
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
@@ -53,14 +54,14 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// ³]©w MVC ¸ô¥Ñ
+// ï¿½]ï¿½w MVC ï¿½ï¿½ï¿½ï¿½
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapRazorPages();
 
-// ªì©l¤Æ¨¤¦â©MºÞ²z­û¨Ï¥ÎªÌ
+// ï¿½ï¿½lï¿½Æ¨ï¿½ï¿½ï¿½Mï¿½Þ²zï¿½ï¿½ï¿½Ï¥Îªï¿½
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -69,13 +70,13 @@ using (var scope = app.Services.CreateScope())
 
 app.Run();
 
-// ¸ê®Æªì©l¤Æ¤èªk
+// ï¿½ï¿½Æªï¿½lï¿½Æ¤ï¿½k
 async Task SeedDataAsync(IServiceProvider services)
 {
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
 
-    // «Ø¥ß¨¤¦â
+    // ï¿½Ø¥ß¨ï¿½ï¿½ï¿½
     string[] roles = { "SuperAdmin", "Manager", "User" };
     foreach (var role in roles)
     {
@@ -85,7 +86,7 @@ async Task SeedDataAsync(IServiceProvider services)
         }
     }
 
-    // «Ø¥ß¹w³]ºÞ²z­û
+    // ï¿½Ø¥ß¹wï¿½]ï¿½Þ²zï¿½ï¿½
     var adminEmail = "admin@company.com";
     var adminUser = await userManager.FindByEmailAsync(adminEmail);
     if (adminUser == null)
