@@ -180,6 +180,24 @@ namespace CPMS_Web.Services
                 .ToListAsync();
         }
 
+        public async Task<List<InventoryTransaction>> GetAllTransactionHistoryAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.InventoryTransactions
+                .Include(t => t.User)
+                .Include(t => t.SparePart)
+                .AsQueryable();
+
+            if (startDate.HasValue)
+                query = query.Where(t => t.TransactionDate >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(t => t.TransactionDate <= endDate.Value);
+
+            return await query
+                .OrderByDescending(t => t.TransactionDate)
+                .ToListAsync();
+        }
+
         public async Task<DashboardViewModel> GetDashboardDataAsync()
         {
             var dashboard = new DashboardViewModel();

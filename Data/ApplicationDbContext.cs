@@ -79,6 +79,11 @@ namespace CPMS_Web.Data
                       .WithMany()
                       .HasForeignKey(e => e.ApproverId)
                       .OnDelete(DeleteBehavior.Restrict);
+                // 加入 Issuer 關係
+                entity.HasOne(e => e.Issuer)
+                      .WithMany()
+                      .HasForeignKey(e => e.IssuerId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Configure MaterialRequestDetail
