@@ -45,7 +45,7 @@ namespace CPMS_Web.Services
                 {
                     RequestDate = mr.RequestDate,
                     RequestNumber = mr.RequestNumber,
-                    RequesterName = mr.Requester.Name,
+                    RequesterName = mr.Requester.UserName,
                     Department = mr.Department,
                     Status = mr.Status,
                     TotalItems = mr.MaterialRequestItems.Count,

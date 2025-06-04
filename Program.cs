@@ -12,23 +12,23 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options => {
-    options.SignIn.RequireConfirmedAccount = false; // �}�o���ҤU�i�]�� false
+    options.SignIn.RequireConfirmedAccount = false; // 關閉郵件確認
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = false;
     options.Password.RequireLowercase = false;
 })
-.AddRoles<IdentityRole>() // �[�J����䴩
+.AddRoles<IdentityRole>() // 加入角色功能
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// ���U���ε{���A��
+// 註冊服務
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IMaterialRequestService, MaterialRequestService>();
 builder.Services.AddScoped<IStockCountService, StockCountService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 
-//[J MVC 䴩
+// 加入 MVC 功能
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
@@ -54,14 +54,14 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// �]�w MVC ����
+// 設定 MVC 路由
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapRazorPages();
 
-// ��l�ƨ���M�޲z���ϥΪ�
+// 初始化資料庫和預設管理員
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -70,13 +70,13 @@ using (var scope = app.Services.CreateScope())
 
 app.Run();
 
-// ��ƪ�l�Ƥ�k
+// 資料初始化方法
 async Task SeedDataAsync(IServiceProvider services)
 {
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
 
-    // �إߨ���
+    // 建立角色
     string[] roles = { "SuperAdmin", "Manager", "User" };
     foreach (var role in roles)
     {
@@ -86,7 +86,7 @@ async Task SeedDataAsync(IServiceProvider services)
         }
     }
 
-    // �إ߹w�]�޲z��
+    // 建立預設管理員
     var adminEmail = "admin@company.com";
     var adminUser = await userManager.FindByEmailAsync(adminEmail);
     if (adminUser == null)
