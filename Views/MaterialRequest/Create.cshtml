@@ -1,0 +1,363 @@
+﻿@model MaterialRequest
+@{
+    ViewData["Title"] = "建立領料單";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-plus"></i>
+                    @ViewData["Title"]
+                </h3>
+            </div>
+            <form asp-action="Create" method="post" id="materialRequestForm">
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="display: none;"></div>
+
+                    <!-- 基本資訊 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Department" class="form-label">
+                                    <i class="fas fa-building"></i> @Html.DisplayNameFor(m => m.Department)
+                                </label>
+                                <input asp-for="Department" class="form-control" placeholder="輸入申請部門" required>
+                                <span asp-validation-for="Department" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-calendar"></i> 申請日期
+                                </label>
+                                <input type="text" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Remarks" class="form-label">
+                            <i class="fas fa-comment"></i> @Html.DisplayNameFor(m => m.Remarks)
+                        </label>
+                        <textarea asp-for="Remarks" class="form-control" rows="3" placeholder="輸入領料單備註..."></textarea>
+                        <span asp-validation-for="Remarks" class="text-danger"></span>
+                    </div>
+
+                    <!-- 領料項目 -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">
+                                <i class="fas fa-list"></i> 領料項目
+                            </h5>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-primary btn-sm" id="addItemBtn">
+                                    <i class="fas fa-plus"></i> 新增項目
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="materialItemsTable">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 30%;">備品</th>
+                                            <th style="width: 20%;">規格</th>
+                                            <th style="width: 15%;">庫存</th>
+                                            <th style="width: 15%;">申請數量</th>
+                                            <th style="width: 15%;">備註</th>
+                                            <th style="width: 5%;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="materialItems">
+                                        <!-- 動態生成的行項目 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="noItemsMessage" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>尚未新增任何領料項目</p>
+                                <button type="button" class="btn btn-primary" id="addFirstItemBtn">
+                                    <i class="fas fa-plus"></i> 新增第一個項目
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> 返回列表
+                            </a>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-success" id="submitBtn" disabled>
+                                <i class="fas fa-save"></i> 建立領料單
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 備品選擇模態視窗 -->
+<div class="modal fade" id="sparePartModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">選擇備品</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <input type="text" id="sparePartSearch" class="form-control" placeholder="搜尋備品描述或規格...">
+                </div>
+                <div id="sparePartList" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                    <!-- 動態載入備品清單 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        $(document).ready(function() {
+            var itemCount = 0;
+            var currentRowIndex = -1;
+
+            // 檢查是否有項目
+            function checkItems() {
+                var hasItems = $('#materialItems tr').length > 0;
+                $('#noItemsMessage').toggle(!hasItems);
+                $('#materialItemsTable').toggle(hasItems);
+                $('#submitBtn').prop('disabled', !hasItems);
+            }
+
+            // 新增項目按鈕事件
+            $('#addItemBtn, #addFirstItemBtn').on('click', function() {
+                currentRowIndex = -1;
+                showSparePartModal();
+            });
+
+            // 顯示備品選擇模態視窗
+            function showSparePartModal() {
+                $('#sparePartModal').modal('show');
+                loadSpareParts('');
+            }
+
+            // 載入備品清單
+            function loadSpareParts(searchTerm) {
+                $.get('@Url.Action("SearchSpareParts", "MaterialRequest")', { term: searchTerm })
+                    .done(function(data) {
+                        var html = '';
+                        if (data.length === 0) {
+                            html = '<div class="list-group-item text-center text-muted">找不到符合條件的備品</div>';
+                        } else {
+                            data.forEach(function(item) {
+                                var stockBadge = item.quantity === 0 ? 'badge-danger' :
+                                               item.quantity <= 5 ? 'badge-warning' : 'badge-success';
+
+                                html += `
+                                    <a href="#" class="list-group-item list-group-item-action spare-part-item"
+                                       data-id="${item.id}"
+                                       data-description="${item.text.split(' (')[0]}"
+                                       data-specification="${item.text.split('(')[1]?.split(')')[0] || ''}"
+                                       data-quantity="${item.quantity}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">${item.text.split(' (')[0]}</h6>
+                                            <span class="badge ${stockBadge}">${item.quantity}</span>
+                                        </div>
+                                        <p class="mb-1">${item.text.split('(')[1]?.split(')')[0] || ''}</p>
+                                    </a>
+                                `;
+                            });
+                        }
+                        $('#sparePartList').html(html);
+                    })
+                    .fail(function() {
+                        $('#sparePartList').html('<div class="list-group-item text-center text-danger">載入失敗，請重試</div>');
+                    });
+            }
+
+            // 備品搜尋
+            var searchTimeout;
+            $('#sparePartSearch').on('input', function() {
+                clearTimeout(searchTimeout);
+                var searchTerm = $(this).val();
+                searchTimeout = setTimeout(function() {
+                    loadSpareParts(searchTerm);
+                }, 300);
+            });
+
+            // 選擇備品
+            $(document).on('click', '.spare-part-item', function(e) {
+                e.preventDefault();
+
+                var sparePartId = $(this).data('id');
+                var description = $(this).data('description');
+                var specification = $(this).data('specification');
+                var quantity = $(this).data('quantity');
+
+                // 檢查是否已經存在
+                var exists = false;
+                $('#materialItems tr').each(function() {
+                    if ($(this).find('[name$=".SparePartNo"]').val() == sparePartId &&
+                        $(this).index() !== currentRowIndex) {
+                        exists = true;
+                        return false;
+                    }
+                });
+
+                if (exists) {
+                    alert('此備品已在列表中！');
+                    return;
+                }
+
+                if (currentRowIndex >= 0) {
+                    // 更新現有行
+                    updateRow(currentRowIndex, sparePartId, description, specification, quantity);
+                } else {
+                    // 新增行
+                    addNewRow(sparePartId, description, specification, quantity);
+                }
+
+                $('#sparePartModal').modal('hide');
+                checkItems();
+            });
+
+            // 新增新行
+            function addNewRow(sparePartId, description, specification, quantity) {
+                var html = `
+                    <tr>
+                        <td>
+                            <input type="hidden" name="details[${itemCount}].SparePartNo" value="${sparePartId}" />
+                            <div class="spare-part-info">
+                                <strong>${description}</strong>
+                                <br><small class="text-muted">${specification}</small>
+                            </div>
+                        </td>
+                        <td>${specification}</td>
+                        <td>
+                            <span class="badge ${quantity === 0 ? 'badge-danger' : quantity <= 5 ? 'badge-warning' : 'badge-success'}">
+                                ${quantity}
+                            </span>
+                        </td>
+                        <td>
+                            <input type="number" name="details[${itemCount}].RequestedQuantity"
+                                   class="form-control quantity-input"
+                                   min="1" max="${quantity}" value="1" required />
+                        </td>
+                        <td>
+                            <input type="text" name="details[${itemCount}].Remarks"
+                                   class="form-control" placeholder="備註..." />
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-info edit-item" title="編輯">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger remove-item" title="移除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                $('#materialItems').append(html);
+                itemCount++;
+            }
+
+            // 更新現有行
+            function updateRow(rowIndex, sparePartId, description, specification, quantity) {
+                var row = $('#materialItems tr').eq(rowIndex);
+                row.find('[name$=".SparePartNo"]').val(sparePartId);
+                row.find('.spare-part-info').html(`<strong>${description}</strong><br><small class="text-muted">${specification}</small>`);
+                row.find('td:eq(1)').text(specification);
+                row.find('td:eq(2)').html(`<span class="badge ${quantity === 0 ? 'badge-danger' : quantity <= 5 ? 'badge-warning' : 'badge-success'}">${quantity}</span>`);
+                row.find('.quantity-input').attr('max', quantity);
+            }
+
+            // 編輯項目
+            $(document).on('click', '.edit-item', function() {
+                currentRowIndex = $(this).closest('tr').index();
+                showSparePartModal();
+            });
+
+            // 移除項目
+            $(document).on('click', '.remove-item', function() {
+                if (confirm('確定要移除此項目嗎？')) {
+                    $(this).closest('tr').remove();
+                    checkItems();
+                    reindexItems();
+                }
+            });
+
+            // 重新索引項目
+            function reindexItems() {
+                $('#materialItems tr').each(function(index) {
+                    $(this).find('input[name*="details["]').each(function() {
+                        var name = $(this).attr('name');
+                        var newName = name.replace(/details\[\d+\]/, `details[${index}]`);
+                        $(this).attr('name', newName);
+                    });
+                });
+            }
+
+            // 數量驗證
+            $(document).on('change', '.quantity-input', function() {
+                var max = parseInt($(this).attr('max'));
+                var val = parseInt($(this).val());
+
+                if (val > max) {
+                    alert(`申請數量不能超過庫存數量 (${max})`);
+                    $(this).val(max);
+                } else if (val < 1) {
+                    $(this).val(1);
+                }
+            });
+
+            // 表單提交驗證
+            $('#materialRequestForm').on('submit', function(e) {
+                var items = $('#materialItems tr').length;
+                if (items === 0) {
+                    e.preventDefault();
+                    alert('請至少新增一個領料項目！');
+                    return false;
+                }
+
+                // 檢查數量
+                var valid = true;
+                $('.quantity-input').each(function() {
+                    var val = parseInt($(this).val());
+                    var max = parseInt($(this).attr('max'));
+                    if (val <= 0 || val > max) {
+                        valid = false;
+                        $(this).focus();
+                        return false;
+                    }
+                });
+
+                if (!valid) {
+                    e.preventDefault();
+                    alert('請檢查申請數量是否正確！');
+                    return false;
+                }
+
+                return confirm('確定要建立此領料單嗎？');
+            });
+
+            // 初始檢查
+            checkItems();
+        });
+    </script>
+}

@@ -19,6 +19,7 @@ namespace CPMS_Web.Services
         {
             var transactions = await _context.InventoryTransactions
                 .Include(t => t.SparePart)
+                .Include(t => t.User)
                 .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate)
                 .OrderByDescending(t => t.TransactionDate)
                 .ToListAsync();
@@ -27,11 +28,11 @@ namespace CPMS_Web.Services
             {
                 TransactionDate = t.TransactionDate,
                 SparePartId = t.SparePartNo.ToString(),
-                SparePartName = t.SparePart?.Description ?? "",
+                SparePartName = t.SparePart.Description,
                 TransactionType = t.TransactionType,
                 Quantity = t.Quantity,
                 UnitPrice = 0, // 如果有單價欄位可以加入
-                TotalAmount = 0, // 如果有金額欄位可以加入
+                TotalAmount = 0, // 如果有總金額欄位可以加入
                 Remarks = t.Reason
             });
         }
@@ -49,11 +50,11 @@ namespace CPMS_Web.Services
             {
                 RequestDate = r.RequestDate,
                 RequestNumber = r.RequestNo,
-                RequesterName = r.Requester?.UserName ?? "",
+                RequesterName = r.Requester.UserName ?? "",
                 Department = r.Department,
                 Status = r.Status,
                 TotalItems = r.MaterialRequestDetails.Count,
-                TotalAmount = 0 // 如果有金額欄位可以加入
+                TotalAmount = 0 // 如果有金額欄位可以加入計算
             });
         }
 
@@ -70,7 +71,7 @@ namespace CPMS_Web.Services
             {
                 CountDate = sc.CountDate,
                 CountNumber = sc.CountNo,
-                CounterName = sc.Counter?.UserName ?? "",
+                CounterName = sc.Counter.UserName ?? "",
                 Status = sc.Status,
                 TotalItems = sc.StockCountDetails.Count,
                 SystemQuantity = sc.StockCountDetails.Sum(d => d.SystemQuantity),
@@ -84,20 +85,20 @@ namespace CPMS_Web.Services
             var data = await GetInventoryReportAsync(startDate, endDate);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("庫存報表");
+            var worksheet = workbook.Worksheets.Add("庫存異動報表");
 
             // 設定標題
-            worksheet.Cell(1, 1).Value = "交易日期";
-            worksheet.Cell(1, 2).Value = "料件編號";
-            worksheet.Cell(1, 3).Value = "料件名稱";
-            worksheet.Cell(1, 4).Value = "交易類型";
+            worksheet.Cell(1, 1).Value = "異動日期";
+            worksheet.Cell(1, 2).Value = "備品編號";
+            worksheet.Cell(1, 3).Value = "備品名稱";
+            worksheet.Cell(1, 4).Value = "異動類型";
             worksheet.Cell(1, 5).Value = "數量";
             worksheet.Cell(1, 6).Value = "備註";
 
             // 設定標題樣式
-            var headerRange = worksheet.Range(1, 1, 1, 6);
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+            var titleRange = worksheet.Range(1, 1, 1, 6);
+            titleRange.Style.Font.Bold = true;
+            titleRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
             // 填入資料
             int row = 2;
@@ -125,7 +126,7 @@ namespace CPMS_Web.Services
             var data = await GetMaterialRequestReportAsync(startDate, endDate);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("領料報表");
+            var worksheet = workbook.Worksheets.Add("領料申請報表");
 
             // 設定標題
             worksheet.Cell(1, 1).Value = "申請日期";
@@ -136,9 +137,9 @@ namespace CPMS_Web.Services
             worksheet.Cell(1, 6).Value = "項目數量";
 
             // 設定標題樣式
-            var headerRange = worksheet.Range(1, 1, 1, 6);
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+            var titleRange = worksheet.Range(1, 1, 1, 6);
+            titleRange.Style.Font.Bold = true;
+            titleRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
             // 填入資料
             int row = 2;
@@ -179,9 +180,9 @@ namespace CPMS_Web.Services
             worksheet.Cell(1, 8).Value = "差異";
 
             // 設定標題樣式
-            var headerRange = worksheet.Range(1, 1, 1, 8);
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+            var titleRange = worksheet.Range(1, 1, 1, 8);
+            titleRange.Style.Font.Bold = true;
+            titleRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
             // 填入資料
             int row = 2;
@@ -190,11 +191,18 @@ namespace CPMS_Web.Services
                 worksheet.Cell(row, 1).Value = item.CountDate.ToString("yyyy-MM-dd");
                 worksheet.Cell(row, 2).Value = item.CountNumber;
                 worksheet.Cell(row, 3).Value = item.CounterName;
-                worksheet.Cell(row, 4).Value = GetCountStatusText(item.Status);
+                worksheet.Cell(row, 4).Value = item.Status == "COMPLETED" ? "已完成" : "進行中";
                 worksheet.Cell(row, 5).Value = item.TotalItems;
                 worksheet.Cell(row, 6).Value = item.SystemQuantity;
                 worksheet.Cell(row, 7).Value = item.ActualQuantity;
                 worksheet.Cell(row, 8).Value = item.Variance;
+
+                // 差異數量的顏色標示
+                if (item.Variance != 0)
+                {
+                    worksheet.Cell(row, 8).Style.Font.FontColor = item.Variance > 0 ? XLColor.Green : XLColor.Red;
+                }
+
                 row++;
             }
 
@@ -225,16 +233,6 @@ namespace CPMS_Web.Services
                 "APPROVED" => "已核准",
                 "REJECTED" => "已駁回",
                 "ISSUED" => "已出庫",
-                _ => status
-            };
-        }
-
-        private string GetCountStatusText(string status)
-        {
-            return status switch
-            {
-                "IN_PROGRESS" => "進行中",
-                "COMPLETED" => "已完成",
                 _ => status
             };
         }

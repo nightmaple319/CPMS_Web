@@ -1,0 +1,256 @@
+﻿@model List<StockCount>
+@{
+    ViewData["Title"] = "盤點單列表";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-clipboard-check"></i>
+                    @ViewData["Title"]
+                </h3>
+                <div class="card-tools">
+                    @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                    {
+                        <a asp-action="Create" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> 建立盤點單
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 狀態篩選 -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="btn-group" role="group">
+                            <a href="@Url.Action("Index")" class="btn btn-outline-primary active">
+                                <i class="fas fa-list"></i> 全部
+                            </a>
+                            <a href="@Url.Action("Index", new { status = "IN_PROGRESS" })" class="btn btn-outline-warning">
+                                <i class="fas fa-clock"></i> 進行中
+                            </a>
+                            <a href="@Url.Action("Index", new { status = "COMPLETED" })" class="btn btn-outline-success">
+                                <i class="fas fa-check"></i> 已完成
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                @if (Model.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>盤點單號</th>
+                                    <th>盤點日期</th>
+                                    <th>盤點人員</th>
+                                    <th>狀態</th>
+                                    <th>項目數量</th>
+                                    <th>差異項目</th>
+                                    <th>總差異數</th>
+                                    <th>建立日期</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var stockCount in Model)
+                                {
+                                    var differenceItems = stockCount.StockCountDetails.Where(d => d.Difference != 0).Count();
+                                    var totalDifference = stockCount.StockCountDetails.Sum(d => d.Difference);
+
+                                    <tr>
+                                        <td>
+                                            <a asp-action="Details" asp-route-id="@stockCount.Id" class="text-decoration-none">
+                                                @stockCount.CountNo
+                                            </a>
+                                        </td>
+                                        <td>@stockCount.CountDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td>@(stockCount.Counter?.UserName ?? "")</td>
+                                        <td>
+                                            @switch (stockCount.Status)
+                                            {
+                                                case "IN_PROGRESS":
+                                                    <span class="badge badge-warning">
+                                                        <i class="fas fa-clock"></i> 進行中
+                                                    </span>
+                                                    break;
+                                                case "COMPLETED":
+                                                    <span class="badge badge-success">
+                                                        <i class="fas fa-check"></i> 已完成
+                                                    </span>
+                                                    break;
+                                                default:
+                                                    <span class="badge badge-secondary">@stockCount.Status</span>
+                                                    break;
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-info">@stockCount.StockCountDetails.Count</span>
+                                        </td>
+                                        <td>
+                                            @if (differenceItems > 0)
+                                            {
+                                                <span class="badge badge-warning">@differenceItems</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (totalDifference != 0)
+                                            {
+                                                <span class="badge @(totalDifference > 0 ? "badge-success" : "badge-danger")">
+                                                    @(totalDifference > 0 ? "+" : "")@totalDifference
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-secondary">0</span>
+                                            }
+                                        </td>
+                                        <td>@stockCount.CreatedDate.ToString("MM-dd HH:mm")</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a asp-action="Details" asp-route-id="@stockCount.Id" class="btn btn-outline-info" title="查看詳情">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                @if (stockCount.Status == "IN_PROGRESS")
+                                                {
+                                                    <a asp-action="Count" asp-route-id="@stockCount.Id" class="btn btn-outline-primary" title="執行盤點">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                                                    {
+                                                        <button type="button" class="btn btn-outline-success" onclick="completeCount(@stockCount.Id)" title="完成盤點">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    }
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-clipboard-check fa-3x mb-3"></i>
+                        <h5>尚無盤點記錄</h5>
+                        <p>開始您的第一次庫存盤點</p>
+                        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                        {
+                            <a asp-action="Create" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> 建立盤點單
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- 統計卡片 -->
+        @if (Model.Any())
+        {
+            <div class="row">
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-info">
+                        <div class="inner">
+                            <h3>@Model.Count</h3>
+                            <p>總盤點單數</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-warning">
+                        <div class="inner">
+                            <h3>@Model.Count(s => s.Status == "IN_PROGRESS")</h3>
+                            <p>進行中</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-success">
+                        <div class="inner">
+                            <h3>@Model.Count(s => s.Status == "COMPLETED")</h3>
+                            <p>已完成</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-danger">
+                        <div class="inner">
+                            <h3>@Model.SelectMany(s => s.StockCountDetails).Count(d => d.Difference != 0)</h3>
+                            <p>差異項目</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function completeCount(countId) {
+            if (confirm('確定要完成此盤點嗎？完成後將根據盤點結果自動調整庫存數量。')) {
+                // 創建表單並提交
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '@Url.Action("CompleteCount", "StockCount")';
+
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'stockCountId';
+                input.value = countId;
+                form.appendChild(input);
+
+                // 添加防偽令牌
+                var token = $('input[name="__RequestVerificationToken"]').val();
+                if (token) {
+                    var tokenInput = document.createElement('input');
+                    tokenInput.type = 'hidden';
+                    tokenInput.name = '__RequestVerificationToken';
+                    tokenInput.value = token;
+                    form.appendChild(tokenInput);
+                }
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        $(document).ready(function() {
+            // 工具提示
+            $('[title]').tooltip();
+
+            // 自動重新整理進行中的盤點
+            var hasInProgress = @(Model.Any(s => s.Status == "IN_PROGRESS") ? "true" : "false");
+            if (hasInProgress) {
+                setTimeout(function() {
+                    location.reload();
+                }, 60000); // 60秒後重新整理
+            }
+        });
+    </script>
+
+    @Html.AntiForgeryToken()
+}

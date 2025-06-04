@@ -1,0 +1,377 @@
+﻿@model StockCount
+@{
+    ViewData["Title"] = "建立盤點單";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-plus"></i>
+                    @ViewData["Title"]
+                </h3>
+            </div>
+            <form asp-action="Create" method="post" id="stockCountForm">
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="display: none;"></div>
+
+                    <!-- 基本資訊 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-calendar"></i> 盤點日期
+                                </label>
+                                <input type="text" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd HH:mm")" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-user"></i> 盤點人員
+                                </label>
+                                <input type="text" class="form-control" value="@User.Identity?.Name" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Remarks" class="form-label">
+                            <i class="fas fa-comment"></i> @Html.DisplayNameFor(m => m.Remarks)
+                        </label>
+                        <textarea asp-for="Remarks" class="form-control" rows="3" placeholder="輸入盤點備註..."></textarea>
+                        <span asp-validation-for="Remarks" class="text-danger"></span>
+                    </div>
+
+                    <!-- 選擇盤點項目 -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">
+                                <i class="fas fa-boxes"></i> 選擇盤點項目
+                            </h5>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-primary btn-sm" id="addItemBtn">
+                                    <i class="fas fa-plus"></i> 選擇備品
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- 快速選擇 -->
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-info btn-sm" id="selectAllBtn">
+                                            <i class="fas fa-check-double"></i> 全選
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning btn-sm" id="selectLowStockBtn">
+                                            <i class="fas fa-exclamation-triangle"></i> 選擇低庫存
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success btn-sm" id="selectByCategoryBtn">
+                                            <i class="fas fa-tags"></i> 按分類選擇
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" id="clearAllBtn">
+                                            <i class="fas fa-times"></i> 清除全部
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 篩選條件 -->
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <input type="text" id="searchFilter" class="form-control form-control-sm" placeholder="搜尋備品...">
+                                </div>
+                                <div class="col-md-3">
+                                    <select id="categoryFilter" class="form-control form-control-sm">
+                                        <option value="">所有分類</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select id="locationFilter" class="form-control form-control-sm">
+                                        <option value="">所有位置</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="showZeroStock" checked>
+                                        <label class="form-check-label" for="showZeroStock">
+                                            顯示零庫存
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 備品清單 -->
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-sm table-striped" id="sparePartsTable">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th style="width: 5%;">
+                                                <input type="checkbox" id="selectAllCheckbox">
+                                            </th>
+                                            <th style="width: 10%;">編號</th>
+                                            <th style="width: 25%;">描述</th>
+                                            <th style="width: 20%;">規格</th>
+                                            <th style="width: 15%;">分類</th>
+                                            <th style="width: 15%;">位置</th>
+                                            <th style="width: 10%;">庫存</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sparePartsBody">
+                                        <!-- 動態載入備品清單 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 已選項目摘要 -->
+                    <div class="card" id="selectedItemsCard" style="display: none;">
+                        <div class="card-header bg-info">
+                            <h5 class="card-title text-white">
+                                <i class="fas fa-check-circle"></i> 已選擇的盤點項目
+                                <span class="badge badge-light ml-2" id="selectedCount">0</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="selectedItemsList">
+                                <!-- 已選項目清單 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> 返回列表
+                            </a>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-success" id="submitBtn" disabled>
+                                <i class="fas fa-save"></i> 建立盤點單
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        $(document).ready(function() {
+            var allSpareParts = [];
+            var selectedItems = new Set();
+
+            // 載入備品清單
+            loadSpareParts();
+
+            function loadSpareParts() {
+                $.get('@Url.Action("SearchSpareParts", "MaterialRequest")', { term: '' })
+                    .done(function(data) {
+                        allSpareParts = data;
+                        populateFilters();
+                        renderSparePartsTable();
+                    })
+                    .fail(function() {
+                        $('#sparePartsBody').html('<tr><td colspan="7" class="text-center text-danger">載入失敗，請重試</td></tr>');
+                    });
+            }
+
+            // 填入篩選選項
+            function populateFilters() {
+                var categories = [...new Set(allSpareParts.map(item => item.category))].filter(c => c);
+                var locations = [...new Set(allSpareParts.map(item => item.location))].filter(l => l);
+
+                categories.forEach(cat => {
+                    $('#categoryFilter').append(`<option value="${cat}">${cat}</option>`);
+                });
+
+                locations.forEach(loc => {
+                    $('#locationFilter').append(`<option value="${loc}">${loc}</option>`);
+                });
+            }
+
+            // 渲染備品表格
+            function renderSparePartsTable() {
+                var filtered = filterSpareParts();
+                var html = '';
+
+                if (filtered.length === 0) {
+                    html = '<tr><td colspan="7" class="text-center text-muted">找不到符合條件的備品</td></tr>';
+                } else {
+                    filtered.forEach(function(item) {
+                        var stockBadge = item.quantity === 0 ? 'badge-danger' :
+                                       item.quantity <= 5 ? 'badge-warning' : 'badge-success';
+                        var isSelected = selectedItems.has(item.id);
+
+                        html += `
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="spare-part-checkbox"
+                                           value="${item.id}" ${isSelected ? 'checked' : ''}>
+                                </td>
+                                <td>${item.id}</td>
+                                <td>${item.description}</td>
+                                <td>${item.specification}</td>
+                                <td><span class="badge badge-secondary">${item.category}</span></td>
+                                <td>${item.location}</td>
+                                <td><span class="badge ${stockBadge}">${item.quantity}</span></td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                $('#sparePartsBody').html(html);
+                updateSelectAllCheckbox();
+            }
+
+            // 篩選備品
+            function filterSpareParts() {
+                var searchTerm = $('#searchFilter').val().toLowerCase();
+                var categoryFilter = $('#categoryFilter').val();
+                var locationFilter = $('#locationFilter').val();
+                var showZeroStock = $('#showZeroStock').is(':checked');
+
+                return allSpareParts.filter(function(item) {
+                    var matchSearch = searchTerm === '' ||
+                                    item.description.toLowerCase().includes(searchTerm) ||
+                                    item.specification.toLowerCase().includes(searchTerm);
+                    var matchCategory = categoryFilter === '' || item.category === categoryFilter;
+                    var matchLocation = locationFilter === '' || item.location === locationFilter;
+                    var matchStock = showZeroStock || item.quantity > 0;
+
+                    return matchSearch && matchCategory && matchLocation && matchStock;
+                });
+            }
+
+            // 篩選事件
+            $('#searchFilter, #categoryFilter, #locationFilter, #showZeroStock').on('change input', function() {
+                renderSparePartsTable();
+            });
+
+            // 選擇備品事件
+            $(document).on('change', '.spare-part-checkbox', function() {
+                var itemId = parseInt($(this).val());
+                if ($(this).is(':checked')) {
+                    selectedItems.add(itemId);
+                } else {
+                    selectedItems.delete(itemId);
+                }
+                updateSelectedItems();
+                updateSelectAllCheckbox();
+            });
+
+            // 全選/取消全選
+            $('#selectAllCheckbox').on('change', function() {
+                var isChecked = $(this).is(':checked');
+                $('.spare-part-checkbox:visible').each(function() {
+                    var itemId = parseInt($(this).val());
+                    $(this).prop('checked', isChecked);
+                    if (isChecked) {
+                        selectedItems.add(itemId);
+                    } else {
+                        selectedItems.delete(itemId);
+                    }
+                });
+                updateSelectedItems();
+            });
+
+            // 更新全選複選框狀態
+            function updateSelectAllCheckbox() {
+                var visible = $('.spare-part-checkbox:visible');
+                var checked = $('.spare-part-checkbox:visible:checked');
+
+                if (visible.length === 0) {
+                    $('#selectAllCheckbox').prop('indeterminate', false).prop('checked', false);
+                } else if (checked.length === visible.length) {
+                    $('#selectAllCheckbox').prop('indeterminate', false).prop('checked', true);
+                } else if (checked.length > 0) {
+                    $('#selectAllCheckbox').prop('indeterminate', true);
+                } else {
+                    $('#selectAllCheckbox').prop('indeterminate', false).prop('checked', false);
+                }
+            }
+
+            // 快速選擇按鈕
+            $('#selectAllBtn').on('click', function() {
+                allSpareParts.forEach(item => selectedItems.add(item.id));
+                renderSparePartsTable();
+                updateSelectedItems();
+            });
+
+            $('#selectLowStockBtn').on('click', function() {
+                allSpareParts.filter(item => item.quantity <= 5).forEach(item => selectedItems.add(item.id));
+                renderSparePartsTable();
+                updateSelectedItems();
+            });
+
+            $('#clearAllBtn').on('click', function() {
+                selectedItems.clear();
+                renderSparePartsTable();
+                updateSelectedItems();
+            });
+
+            // 更新已選項目
+            function updateSelectedItems() {
+                $('#selectedCount').text(selectedItems.size);
+
+                if (selectedItems.size > 0) {
+                    $('#selectedItemsCard').show();
+                    var html = '';
+                    selectedItems.forEach(function(itemId) {
+                        var item = allSpareParts.find(sp => sp.id === itemId);
+                        if (item) {
+                            html += `
+                                <span class="badge badge-info mr-1 mb-1">
+                                    ${item.description} (${item.specification})
+                                    <button type="button" class="btn-close" onclick="removeSelected(${itemId})">&times;</button>
+                                </span>
+                            `;
+                        }
+                    });
+                    $('#selectedItemsList').html(html);
+                } else {
+                    $('#selectedItemsCard').hide();
+                }
+
+                $('#submitBtn').prop('disabled', selectedItems.size === 0);
+            }
+
+            // 移除已選項目
+            window.removeSelected = function(itemId) {
+                selectedItems.delete(itemId);
+                renderSparePartsTable();
+                updateSelectedItems();
+            };
+
+            // 表單提交
+            $('#stockCountForm').on('submit', function(e) {
+                if (selectedItems.size === 0) {
+                    e.preventDefault();
+                    alert('請選擇至少一個盤點項目！');
+                    return false;
+                }
+
+                // 創建隱藏輸入欄位
+                selectedItems.forEach(function(itemId) {
+                    $('<input>').attr({
+                        type: 'hidden',
+                        name: 'sparePartNos',
+                        value: itemId
+                    }).appendTo(this);
+                }.bind(this));
+
+                return confirm(`確定要建立包含 ${selectedItems.size} 個項目的盤點單嗎？`);
+            });
+        });
+    </script>
+}

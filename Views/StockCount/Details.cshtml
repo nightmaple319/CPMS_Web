@@ -1,0 +1,367 @@
+﻿@model StockCount
+@{
+    ViewData["Title"] = "盤點單詳情";
+    var totalDifference = Model.StockCountDetails.Sum(d => d.Difference);
+    var differenceItems = Model.StockCountDetails.Where(d => d.Difference != 0).Count();
+}
+
+<div class="row">
+    <div class="col-12">
+        <!-- 盤點基本資訊 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-info-circle"></i>
+                    盤點單資訊 - @Model.CountNo
+                </h3>
+                <div class="card-tools">
+                    @switch (Model.Status)
+                    {
+                        case "IN_PROGRESS":
+                            <span class="badge badge-warning badge-lg">
+                                <i class="fas fa-clock"></i> 進行中
+                            </span>
+                            break;
+                        case "COMPLETED":
+                            <span class="badge badge-success badge-lg">
+                                <i class="fas fa-check"></i> 已完成
+                            </span>
+                            break;
+                        default:
+                            <span class="badge badge-secondary badge-lg">@Model.Status</span>
+                            break;
+                    }
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="font-weight-bold" style="width: 30%;">盤點單號:</td>
+                                <td>@Model.CountNo</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">盤點日期:</td>
+                                <td>@Model.CountDate.ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">盤點人員:</td>
+                                <td>@(Model.Counter?.UserName ?? "")</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">狀態:</td>
+                                <td>
+                                    @switch (Model.Status)
+                                    {
+                                        case "IN_PROGRESS":
+                                            <span class="badge badge-warning">進行中</span>
+                                            break;
+                                        case "COMPLETED":
+                                            <span class="badge badge-success">已完成</span>
+                                            break;
+                                        default:
+                                            <span class="badge badge-secondary">@Model.Status</span>
+                                            break;
+                                    }
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="font-weight-bold" style="width: 30%;">建立日期:</td>
+                                <td>@Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">盤點項目:</td>
+                                <td><span class="badge badge-info">@Model.StockCountDetails.Count</span></td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">差異項目:</td>
+                                <td>
+                                    @if (differenceItems > 0)
+                                    {
+                                        <span class="badge badge-warning">@differenceItems</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-success">0</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">總差異數:</td>
+                                <td>
+                                    @if (totalDifference != 0)
+                                    {
+                                        <span class="badge @(totalDifference > 0 ? "badge-success" : "badge-danger") badge-lg">
+                                            @(totalDifference > 0 ? "+" : "")@totalDifference
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-secondary">0</span>
+                                    }
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.Remarks))
+                {
+                    <div class="row">
+                        <div class="col-12">
+                            <hr>
+                            <div class="form-group">
+                                <label class="font-weight-bold">備註:</label>
+                                <p class="border p-2 bg-light">@Model.Remarks</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="card-footer">
+                <div class="btn-group">
+                    @if (Model.Status == "IN_PROGRESS")
+                    {
+                        <a asp-action="Count" asp-route-id="@Model.Id" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> 執行盤點
+                        </a>
+                        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                        {
+                            <button type="button" class="btn btn-success" onclick="completeCount(@Model.Id)">
+                                <i class="fas fa-check"></i> 完成盤點
+                            </button>
+                        }
+                    }
+                </div>
+                <a asp-action="Index" class="btn btn-secondary float-right">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
+            </div>
+        </div>
+
+        <!-- 統計摘要 -->
+        @if (Model.Status == "COMPLETED")
+        {
+            <div class="row">
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-info">
+                        <div class="inner">
+                            <h3>@Model.StockCountDetails.Sum(d => d.SystemQuantity)</h3>
+                            <p>帳面總數</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-database"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-primary">
+                        <div class="inner">
+                            <h3>@Model.StockCountDetails.Sum(d => d.CountedQuantity)</h3>
+                            <p>實盤總數</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-clipboard-check"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box @(totalDifference >= 0 ? "bg-success" : "bg-danger")">
+                        <div class="inner">
+                            <h3>@(totalDifference > 0 ? "+" : "")@totalDifference</h3>
+                            <p>總差異數</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas @(totalDifference >= 0 ? "fa-arrow-up" : "fa-arrow-down")"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-warning">
+                        <div class="inner">
+                            <h3>@Math.Round(differenceItems * 100.0 / Model.StockCountDetails.Count, 1)%</h3>
+                            <p>差異率</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- 盤點明細 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-list"></i>
+                    盤點明細
+                </h3>
+                <div class="card-tools">
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-primary" onclick="showAll()">全部</button>
+                        <button type="button" class="btn btn-outline-warning" onclick="showDifference()">僅顯示差異</button>
+                        <button type="button" class="btn btn-outline-success" onclick="showMatch()">僅顯示相符</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Model.StockCountDetails.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="detailsTable">
+                            <thead>
+                                <tr>
+                                    <th>編號</th>
+                                    <th>備品描述</th>
+                                    <th>規格</th>
+                                    <th>分類</th>
+                                    <th>位置</th>
+                                    <th>帳面數量</th>
+                                    <th>盤點數量</th>
+                                    <th>差異數量</th>
+                                    <th>差異率</th>
+                                    <th>備註</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var detail in Model.StockCountDetails.OrderBy(d => d.SparePartNo))
+                                {
+                                    var differencePercent = detail.SystemQuantity > 0 ?
+                                    Math.Round(Math.Abs(detail.Difference) * 100.0 / detail.SystemQuantity, 1) : 0;
+
+                                    <tr class="@(detail.Difference != 0 ? "table-warning" : "")">
+                                        <td>@detail.SparePartNo</td>
+                                        <td>@detail.SparePart.Description</td>
+                                        <td>@detail.SparePart.Specification</td>
+                                        <td>
+                                            <span class="badge badge-secondary">@detail.SparePart.Category</span>
+                                        </td>
+                                        <td>@detail.SparePart.PlantId-@detail.SparePart.PositionId</td>
+                                        <td>
+                                            <span class="badge badge-info">@detail.SystemQuantity</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-primary">@detail.CountedQuantity</span>
+                                        </td>
+                                        <td>
+                                            @if (detail.Difference != 0)
+                                            {
+                                                <span class="badge @(detail.Difference > 0 ? "badge-success" : "badge-danger")">
+                                                    @(detail.Difference > 0 ? "+" : "")@detail.Difference
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-light">0</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (detail.Difference != 0)
+                                            {
+                                                <span class="text-@(detail.Difference > 0 ? "success" : "danger")">
+                                                    @differencePercent%
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @(string.IsNullOrEmpty(detail.Remarks) ? "-" : detail.Remarks)
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>此盤點單沒有任何項目</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function completeCount(countId) {
+            if (confirm('確定要完成此盤點嗎？完成後將根據盤點結果自動調整庫存數量。')) {
+                // 創建表單並提交
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '@Url.Action("CompleteStockCount", "StockCount")';
+
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'stockCountId';
+                input.value = countId;
+                form.appendChild(input);
+
+                // 添加防偽令牌
+                var token = $('input[name="__RequestVerificationToken"]').val();
+                if (token) {
+                    var tokenInput = document.createElement('input');
+                    tokenInput.type = 'hidden';
+                    tokenInput.name = '__RequestVerificationToken';
+                    tokenInput.value = token;
+                    form.appendChild(tokenInput);
+                }
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function showAll() {
+            $('#detailsTable tbody tr').show();
+            $('.btn-group-sm .btn').removeClass('active');
+            $('button[onclick="showAll()"]').addClass('active');
+        }
+
+        function showDifference() {
+            $('#detailsTable tbody tr').hide();
+            $('#detailsTable tbody tr.table-warning').show();
+            $('.btn-group-sm .btn').removeClass('active');
+            $('button[onclick="showDifference()"]').addClass('active');
+        }
+
+        function showMatch() {
+            $('#detailsTable tbody tr').hide();
+            $('#detailsTable tbody tr:not(.table-warning)').show();
+            $('.btn-group-sm .btn').removeClass('active');
+            $('button[onclick="showMatch()"]').addClass('active');
+        }
+
+        $(document).ready(function() {
+            // 預設顯示全部
+            showAll();
+
+            // 工具提示
+            $('[title]').tooltip();
+
+            // 如果是進行中狀態，定期重新整理
+        @if (Model.Status == "IN_PROGRESS")
+        {
+            <text>
+                    setTimeout(function() {
+                        location.reload();
+                    }, 30000); // 30秒後重新整理
+            </text>
+        }
+        });
+    </script>
+
+    @Html.AntiForgeryToken()
+}

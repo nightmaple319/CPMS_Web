@@ -1,0 +1,512 @@
+﻿@model StockCount
+@{
+    ViewData["Title"] = "執行盤點";
+}
+
+<div class="row">
+    <div class="col-12">
+        <!-- 盤點基本資訊 -->
+        <div class="card">
+            <div class="card-header bg-primary">
+                <h3 class="card-title text-white">
+                    <i class="fas fa-clipboard-check"></i>
+                    @ViewData["Title"] - @Model.CountNo
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-warning badge-lg">
+                        <i class="fas fa-clock"></i> 進行中
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="font-weight-bold" style="width: 30%;">盤點單號:</td>
+                                <td>@Model.CountNo</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">盤點日期:</td>
+                                <td>@Model.CountDate.ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">盤點人員:</td>
+                                <td>@(Model.Counter?.UserName ?? "")</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="font-weight-bold" style="width: 30%;">盤點項目:</td>
+                                <td><span class="badge badge-info">@Model.StockCountDetails.Count</span></td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">已盤點:</td>
+                                <td>
+                                    <span class="badge badge-success" id="countedItems">
+                                        @Model.StockCountDetails.Count(d => d.CountedQuantity > 0 || d.SystemQuantity == 0)
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">進度:</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.Remarks))
+                {
+                    <div class="row">
+                        <div class="col-12">
+                            <hr>
+                            <div class="form-group">
+                                <label class="font-weight-bold">盤點備註:</label>
+                                <p class="border p-2 bg-light">@Model.Remarks</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- 盤點操作工具 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="fas fa-tools"></i>
+                    盤點工具
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>快速操作:</label>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="quickFill('match')">
+                                    <i class="fas fa-equals"></i> 填入帳面數量
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="quickFill('zero')">
+                                    <i class="fas fa-times"></i> 全部歸零
+                                </button>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="quickFill('clear')">
+                                    <i class="fas fa-eraser"></i> 清除全部
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>篩選:</label>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-primary btn-sm active" onclick="filterItems('all')">
+                                    全部
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="filterItems('pending')">
+                                    未盤點
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="filterItems('completed')">
+                                    已盤點
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="filterItems('difference')">
+                                    有差異
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 搜尋和排序 -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>搜尋備品:</label>
+                            <input type="text" id="searchInput" class="form-control" placeholder="搜尋編號、描述或規格...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>排序:</label>
+                            <select id="sortSelect" class="form-control">
+                                <option value="no">按編號</option>
+                                <option value="description">按描述</option>
+                                <option value="category">按分類</option>
+                                <option value="location">按位置</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 盤點明細 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-list"></i>
+                    盤點明細
+                </h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-success" onclick="saveProgress()">
+                        <i class="fas fa-save"></i> 儲存進度
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="countTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%;">編號</th>
+                                <th style="width: 25%;">備品描述</th>
+                                <th style="width: 15%;">規格</th>
+                                <th style="width: 10%;">分類</th>
+                                <th style="width: 12%;">位置</th>
+                                <th style="width: 10%;">帳面數量</th>
+                                <th style="width: 10%;">盤點數量</th>
+                                <th style="width: 8%;">差異</th>
+                                <th style="width: 2%;">狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var detail in Model.StockCountDetails.OrderBy(d => d.SparePartNo))
+                            {
+                                <tr data-id="@detail.Id" data-system="@detail.SystemQuantity" data-counted="@detail.CountedQuantity">
+                                    <td>@detail.SparePartNo</td>
+                                    <td>
+                                        <strong>@detail.SparePart.Description</strong>
+                                        <br>
+                                        <small class="text-muted">@detail.SparePart.PlantId-@detail.SparePart.PositionId-@detail.SparePart.SubPositionId</small>
+                                    </td>
+                                    <td>@detail.SparePart.Specification</td>
+                                    <td>
+                                        <span class="badge badge-secondary">@detail.SparePart.Category</span>
+                                    </td>
+                                    <td>@detail.SparePart.PlantId-@detail.SparePart.PositionId</td>
+                                    <td>
+                                        <span class="badge badge-info badge-lg">@detail.SystemQuantity</span>
+                                    </td>
+                                    <td>
+                                        <div class="input-group">
+                                            <input type="number"
+                                                   class="form-control count-input"
+                                                   data-detail-id="@detail.Id"
+                                                   value="@detail.CountedQuantity"
+                                                   min="0"
+                                                   max="9999"
+                                                   placeholder="實盤數量">
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-outline-success btn-sm quick-count" data-action="match" title="填入帳面數量">
+                                                    <i class="fas fa-equals"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger btn-sm quick-count" data-action="zero" title="歸零">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="difference-badge"></span>
+                                    </td>
+                                    <td>
+                                        <span class="status-icon"></span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info">
+                            <i class="fas fa-eye"></i> 查看詳情
+                        </a>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> 返回列表
+                        </a>
+                    </div>
+                    <div>
+                        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                        {
+                            <button type="button" class="btn btn-success" onclick="completeCount()">
+                                <i class="fas fa-check"></i> 完成盤點
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // 初始化
+            updateAllDifferences();
+            updateProgress();
+
+            // 監聽數量輸入變化
+            $(document).on('input change', '.count-input', function() {
+                var row = $(this).closest('tr');
+                updateRowDifference(row);
+                updateProgress();
+
+                // 自動儲存
+                var detailId = $(this).data('detail-id');
+                var quantity = parseInt($(this).val()) || 0;
+                autoSave(detailId, quantity);
+            });
+
+            // 快速操作按鈕
+            $(document).on('click', '.quick-count', function() {
+                var action = $(this).data('action');
+                var row = $(this).closest('tr');
+                var input = row.find('.count-input');
+                var systemQty = parseInt(row.data('system'));
+
+                if (action === 'match') {
+                    input.val(systemQty);
+                } else if (action === 'zero') {
+                    input.val(0);
+                }
+
+                input.trigger('change');
+            });
+
+            // 搜尋功能
+            $('#searchInput').on('input', function() {
+                var searchTerm = $(this).val().toLowerCase();
+                $('#countTable tbody tr').each(function() {
+                    var text = $(this).text().toLowerCase();
+                    $(this).toggle(text.includes(searchTerm));
+                });
+            });
+
+            // 排序功能
+            $('#sortSelect').on('change', function() {
+                var sortBy = $(this).val();
+                sortTable(sortBy);
+            });
+        });
+
+        // 更新單行差異
+        function updateRowDifference(row) {
+            var systemQty = parseInt(row.data('system'));
+            var countedQty = parseInt(row.find('.count-input').val()) || 0;
+            var difference = countedQty - systemQty;
+
+            // 更新差異顯示
+            var diffBadge = row.find('.difference-badge');
+            if (difference === 0) {
+                diffBadge.html('<span class="badge badge-light">0</span>');
+            } else if (difference > 0) {
+                diffBadge.html(`<span class="badge badge-success">+${difference}</span>`);
+            } else {
+                diffBadge.html(`<span class="badge badge-danger">${difference}</span>`);
+            }
+
+            // 更新狀態圖示
+            var statusIcon = row.find('.status-icon');
+            var hasInput = row.find('.count-input').val() !== '';
+
+            if (!hasInput) {
+                statusIcon.html('<i class="fas fa-clock text-warning" title="待盤點"></i>');
+            } else if (difference === 0) {
+                statusIcon.html('<i class="fas fa-check text-success" title="相符"></i>');
+            } else {
+                statusIcon.html('<i class="fas fa-exclamation-triangle text-warning" title="有差異"></i>');
+            }
+        }
+
+        // 更新所有差異
+        function updateAllDifferences() {
+            $('#countTable tbody tr').each(function() {
+                updateRowDifference($(this));
+            });
+        }
+
+        // 更新進度
+        function updateProgress() {
+            var total = $('#countTable tbody tr').length;
+            var completed = $('#countTable tbody .count-input').filter(function() {
+                return $(this).val() !== '';
+            }).length;
+
+            var percentage = total > 0 ? Math.round(completed * 100 / total) : 0;
+            $('#progressBar').css('width', percentage + '%').text(percentage + '%');
+            $('#countedItems').text(completed);
+        }
+
+        // 快速填入
+        function quickFill(action) {
+            $('#countTable tbody tr:visible').each(function() {
+                var input = $(this).find('.count-input');
+                var systemQty = parseInt($(this).data('system'));
+
+                switch (action) {
+                    case 'match':
+                        input.val(systemQty);
+                        break;
+                    case 'zero':
+                        input.val(0);
+                        break;
+                    case 'clear':
+                        input.val('');
+                        break;
+                }
+                input.trigger('change');
+            });
+        }
+
+        // 篩選項目
+        function filterItems(filter) {
+            $('.btn-group .btn').removeClass('active');
+            $(`button[onclick="filterItems('${filter}')"]`).addClass('active');
+
+            $('#countTable tbody tr').each(function() {
+                var show = false;
+                var hasInput = $(this).find('.count-input').val() !== '';
+                var systemQty = parseInt($(this).data('system'));
+                var countedQty = parseInt($(this).find('.count-input').val()) || 0;
+                var hasDifference = systemQty !== countedQty;
+
+                switch (filter) {
+                    case 'all':
+                        show = true;
+                        break;
+                    case 'pending':
+                        show = !hasInput;
+                        break;
+                    case 'completed':
+                        show = hasInput;
+                        break;
+                    case 'difference':
+                        show = hasInput && hasDifference;
+                        break;
+                }
+
+                $(this).toggle(show);
+            });
+        }
+
+        // 排序表格
+        function sortTable(sortBy) {
+            var rows = $('#countTable tbody tr').get();
+
+            rows.sort(function(a, b) {
+                var aVal, bVal;
+
+                switch (sortBy) {
+                    case 'no':
+                        aVal = parseInt($(a).find('td:first').text());
+                        bVal = parseInt($(b).find('td:first').text());
+                        break;
+                    case 'description':
+                        aVal = $(a).find('td:nth-child(2) strong').text();
+                        bVal = $(b).find('td:nth-child(2) strong').text();
+                        break;
+                    case 'category':
+                        aVal = $(a).find('td:nth-child(4)').text();
+                        bVal = $(b).find('td:nth-child(4)').text();
+                        break;
+                    case 'location':
+                        aVal = $(a).find('td:nth-child(5)').text();
+                        bVal = $(b).find('td:nth-child(5)').text();
+                        break;
+                }
+
+                if (typeof aVal === 'number') {
+                    return aVal - bVal;
+                } else {
+                    return aVal.localeCompare(bVal);
+                }
+            });
+
+            $('#countTable tbody').empty().append(rows);
+        }
+
+        // 自動儲存
+        var saveTimeout;
+        function autoSave(detailId, quantity) {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(function() {
+                $.ajax({
+                    url: '@Url.Action("UpdateCountQuantity", "StockCount")',
+                    type: 'POST',
+                    data: {
+                        countDetailId: detailId,
+                        countedQuantity: quantity,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // 可以顯示儲存成功的提示
+                            console.log('自動儲存成功');
+                        }
+                    }
+                });
+            }, 1000); // 1秒後自動儲存
+        }
+
+        // 手動儲存進度
+        function saveProgress() {
+            var updates = [];
+            $('.count-input').each(function() {
+                var detailId = $(this).data('detail-id');
+                var quantity = parseInt($(this).val()) || 0;
+                updates.push({ detailId: detailId, quantity: quantity });
+            });
+
+            // 批次更新
+            var promises = updates.map(function(update) {
+                return $.ajax({
+                    url: '@Url.Action("UpdateCountQuantity", "StockCount")',
+                    type: 'POST',
+                    data: {
+                        countDetailId: update.detailId,
+                        countedQuantity: update.quantity,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    }
+                });
+            });
+
+            $.when.apply($, promises).then(function() {
+                alert('進度儲存成功！');
+            }).fail(function() {
+                alert('儲存失敗，請重試！');
+            });
+        }
+
+        // 完成盤點
+        function completeCount() {
+            var incomplete = $('.count-input').filter(function() {
+                return $(this).val() === '';
+            }).length;
+
+            var message = '確定要完成此盤點嗎？完成後將根據盤點結果自動調整庫存數量。';
+            if (incomplete > 0) {
+                message += `\n\n注意：還有 ${incomplete} 個項目尚未盤點，未盤點的項目將維持原庫存數量。`;
+            }
+
+            if (confirm(message)) {
+                saveProgress();
+                setTimeout(function() {
+                    window.location.href = '@Url.Action("Details", "StockCount", new { id = Model.Id })';
+                }, 1000);
+            }
+        }
+    </script>
+
+    @Html.AntiForgeryToken()
+}

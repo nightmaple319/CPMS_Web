@@ -1,0 +1,280 @@
+﻿@{
+    ViewData["Title"] = "調整庫存數量";
+    var sparePart = ViewBag.SparePart as SparePart;
+}
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-balance-scale"></i>
+                    @ViewData["Title"]
+                </h3>
+            </div>
+            <form asp-action="AdjustQuantity" method="post">
+                <div class="card-body">
+                    <!-- 備品資訊 -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5>備品資訊</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <tr>
+                                        <td class="bg-light" style="width: 20%;"><strong>編號</strong></td>
+                                        <td>@sparePart.No</td>
+                                        <td class="bg-light" style="width: 20%;"><strong>分類</strong></td>
+                                        <td>@sparePart.Category</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="bg-light"><strong>描述</strong></td>
+                                        <td colspan="3">@sparePart.Description</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="bg-light"><strong>規格</strong></td>
+                                        <td colspan="3">@sparePart.Specification</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="bg-light"><strong>位置</strong></td>
+                                        <td>@sparePart.PlantId - @sparePart.PositionId - @sparePart.SubPositionId</td>
+                                        <td class="bg-light"><strong>當前庫存</strong></td>
+                                        <td>
+                                            <span class="badge badge-lg @(sparePart.Quantity == 0 ? "badge-danger" : sparePart.Quantity <= 5 ? "badge-warning" : "badge-success")">
+                                                @sparePart.Quantity
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 數量調整 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="newQuantity" class="form-label">
+                                    <i class="fas fa-edit"></i> 新的庫存數量
+                                </label>
+                                <input type="number" id="newQuantity" name="newQuantity"
+                                       class="form-control form-control-lg"
+                                       value="@sparePart.Quantity"
+                                       min="0"
+                                       max="99999"
+                                       required>
+                                <small class="form-text text-muted">請輸入調整後的庫存數量</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-calculator"></i> 調整數量
+                                </label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" id="adjustment-icon">
+                                            <i class="fas fa-equals"></i>
+                                        </span>
+                                    </div>
+                                    <input type="text" id="adjustmentDisplay" class="form-control form-control-lg" readonly>
+                                </div>
+                                <small class="form-text text-muted">系統自動計算的調整數量</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 調整原因 -->
+                    <div class="form-group">
+                        <label for="reason" class="form-label">
+                            <i class="fas fa-comment"></i> 調整原因 <span class="text-danger">*</span>
+                        </label>
+                        <textarea id="reason" name="reason" class="form-control" rows="3"
+                                  placeholder="請詳細說明調整庫存的原因..." required></textarea>
+                        <small class="form-text text-muted">此原因將記錄在異動歷史中</small>
+                    </div>
+
+                    <!-- 預設原因按鈕 -->
+                    <div class="form-group">
+                        <label class="form-label">常用原因：</label>
+                        <div class="btn-group-toggle" data-toggle="buttons">
+                            <button type="button" class="btn btn-outline-secondary btn-sm reason-btn" data-reason="盤點調整">盤點調整</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm reason-btn" data-reason="庫存報廢">庫存報廢</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm reason-btn" data-reason="資料修正">資料修正</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm reason-btn" data-reason="緊急入庫">緊急入庫</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm reason-btn" data-reason="期初調整">期初調整</button>
+                        </div>
+                    </div>
+
+                    <!-- 調整預覽 -->
+                    <div id="adjustment-preview" class="alert" style="display: none;">
+                        <h6><i class="fas fa-eye"></i> 調整預覽：</h6>
+                        <div id="preview-content"></div>
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a asp-action="Details" asp-route-id="@sparePart.No" class="btn btn-info">
+                                <i class="fas fa-eye"></i> 查看詳情
+                            </a>
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> 返回列表
+                            </a>
+                        </div>
+                        <div>
+                            <button type="submit" id="submitBtn" class="btn btn-success" disabled>
+                                <i class="fas fa-save"></i> 確認調整
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            var originalQuantity = @sparePart.Quantity;
+
+            // 計算調整數量
+            function calculateAdjustment() {
+                var newQuantity = parseInt($('#newQuantity').val()) || 0;
+                var adjustment = newQuantity - originalQuantity;
+
+                // 更新調整數量顯示
+                var adjustmentText = adjustment === 0 ? '0' : (adjustment > 0 ? '+' + adjustment : adjustment.toString());
+                $('#adjustmentDisplay').val(adjustmentText);
+
+                // 更新圖示和顏色
+                var icon = $('#adjustment-icon i');
+                var display = $('#adjustmentDisplay');
+
+                if (adjustment > 0) {
+                    icon.removeClass().addClass('fas fa-plus text-success');
+                    display.removeClass().addClass('form-control form-control-lg text-success font-weight-bold');
+                } else if (adjustment < 0) {
+                    icon.removeClass().addClass('fas fa-minus text-danger');
+                    display.removeClass().addClass('form-control form-control-lg text-danger font-weight-bold');
+                } else {
+                    icon.removeClass().addClass('fas fa-equals text-secondary');
+                    display.removeClass().addClass('form-control form-control-lg text-secondary');
+                }
+
+                // 更新預覽
+                updatePreview(originalQuantity, newQuantity, adjustment);
+
+                // 控制提交按鈕
+                var reason = $('#reason').val().trim();
+                $('#submitBtn').prop('disabled', adjustment === 0 || reason === '');
+
+                return adjustment;
+            }
+
+            // 更新預覽
+            function updatePreview(original, newQty, adjustment) {
+                if (adjustment === 0) {
+                    $('#adjustment-preview').hide();
+                    return;
+                }
+
+                var alertClass = adjustment > 0 ? 'alert-success' : 'alert-warning';
+                var actionText = adjustment > 0 ? '增加' : '減少';
+                var iconClass = adjustment > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+
+                var content = `
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>原始庫存：</strong> ${original}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>調整後庫存：</strong> ${newQty}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>${actionText}數量：</strong>
+                            <span class="font-weight-bold">
+                                <i class="fas ${iconClass}"></i> ${Math.abs(adjustment)}
+                            </span>
+                        </div>
+                    </div>
+                `;
+
+                $('#adjustment-preview').removeClass().addClass('alert ' + alertClass).show();
+                $('#preview-content').html(content);
+            }
+
+            // 監聽數量變化
+            $('#newQuantity').on('input change', calculateAdjustment);
+
+            // 監聽原因變化
+            $('#reason').on('input', function() {
+                var adjustment = calculateAdjustment();
+                var reason = $(this).val().trim();
+                $('#submitBtn').prop('disabled', adjustment === 0 || reason === '');
+            });
+
+            // 常用原因按鈕
+            $('.reason-btn').on('click', function() {
+                var reason = $(this).data('reason');
+                $('#reason').val(reason);
+                $(this).blur();
+                calculateAdjustment();
+            });
+
+            // 快速調整按鈕
+            $('#newQuantity').after(`
+                <div class="mt-2">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-danger quick-adjust" data-value="-10">-10</button>
+                        <button type="button" class="btn btn-outline-danger quick-adjust" data-value="-5">-5</button>
+                        <button type="button" class="btn btn-outline-danger quick-adjust" data-value="-1">-1</button>
+                        <button type="button" class="btn btn-outline-secondary quick-adjust" data-value="0">歸零</button>
+                        <button type="button" class="btn btn-outline-success quick-adjust" data-value="+1">+1</button>
+                        <button type="button" class="btn btn-outline-success quick-adjust" data-value="+5">+5</button>
+                        <button type="button" class="btn btn-outline-success quick-adjust" data-value="+10">+10</button>
+                    </div>
+                </div>
+            `);
+
+            // 快速調整事件
+            $(document).on('click', '.quick-adjust', function() {
+                var value = $(this).data('value');
+                var currentQty = parseInt($('#newQuantity').val()) || 0;
+                var newQty;
+
+                if (value === 0) {
+                    newQty = 0;
+                } else if (typeof value === 'string' && value.startsWith('+')) {
+                    newQty = currentQty + parseInt(value.substring(1));
+                } else {
+                    newQty = Math.max(0, currentQty + parseInt(value));
+                }
+
+                $('#newQuantity').val(newQty).trigger('change');
+            });
+
+            // 表單提交確認
+            $('form').on('submit', function(e) {
+                var adjustment = calculateAdjustment();
+                if (adjustment === 0) {
+                    e.preventDefault();
+                    alert('庫存數量沒有變化，無需調整！');
+                    return false;
+                }
+
+                var confirmMessage = `確認要調整庫存嗎？\n\n`;
+                confirmMessage += `原始庫存：${originalQuantity}\n`;
+                confirmMessage += `調整後庫存：${$('#newQuantity').val()}\n`;
+                confirmMessage += `調整數量：${adjustment > 0 ? '+' : ''}${adjustment}\n`;
+                confirmMessage += `調整原因：${$('#reason').val()}`;
+
+                return confirm(confirmMessage);
+            });
+
+            // 初始計算
+            calculateAdjustment();
+        });
+    </script>
+}

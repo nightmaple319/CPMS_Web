@@ -1,0 +1,493 @@
+﻿@model MaterialRequest
+@{
+    ViewData["Title"] = "審核領料單";
+}
+
+<div class="row">
+    <div class="col-12">
+        <!-- 領料單基本資訊 -->
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h3 class="card-title text-white">
+                    <i class="fas fa-clipboard-check"></i>
+                    @ViewData["Title"] - @Model.RequestNo
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light badge-lg">待審核</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="font-weight-bold" style="width: 30%;">領料單號:</td>
+                                <td>@Model.RequestNo</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">申請日期:</td>
+                                <td>@Model.RequestDate.ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">申請人:</td>
+                                <td>@(Model.Requester?.UserName ?? "")</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">申請部門:</td>
+                                <td>@Model.Department</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="font-weight-bold" style="width: 30%;">建立日期:</td>
+                                <td>@Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">項目數量:</td>
+                                <td>@Model.MaterialRequestDetails.Count 項</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">申請總數:</td>
+                                <td>
+                                    <span class="badge badge-primary badge-lg">
+                                        @Model.MaterialRequestDetails.Sum(d => d.RequestedQuantity)
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.Remarks))
+                {
+                    <div class="row">
+                        <div class="col-12">
+                            <hr>
+                            <div class="form-group">
+                                <label class="font-weight-bold">申請備註:</label>
+                                <p class="border p-2 bg-light">@Model.Remarks</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- 審核表單 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-edit"></i>
+                    審核明細
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>審核說明：</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>請檢查每項備品的庫存數量</li>
+                        <li>核准數量不能超過申請數量</li>
+                        <li>核准數量不能超過當前庫存數量</li>
+                        <li>核准數量為 0 表示不核准該項目</li>
+                    </ul>
+                </div>
+
+                <form id="approvalForm">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 8%;">編號</th>
+                                    <th style="width: 25%;">備品描述</th>
+                                    <th style="width: 15%;">規格</th>
+                                    <th style="width: 10%;">分類</th>
+                                    <th style="width: 10%;">申請數量</th>
+                                    <th style="width: 10%;">當前庫存</th>
+                                    <th style="width: 12%;">核准數量</th>
+                                    <th style="width: 10%;">狀態檢查</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.MaterialRequestDetails.Count; i++)
+                                {
+                                    var detail = Model.MaterialRequestDetails.ElementAt(i);
+                                    <tr data-index="@i">
+                                        <td>@detail.SparePartNo</td>
+                                        <td>
+                                            <strong>@detail.SparePart.Description</strong>
+                                            <br>
+                                            <small class="text-muted">位置: @detail.SparePart.PlantId-@detail.SparePart.PositionId</small>
+                                        </td>
+                                        <td>@detail.SparePart.Specification</td>
+                                        <td>
+                                            <span class="badge badge-secondary">@detail.SparePart.Category</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-primary badge-lg">@detail.RequestedQuantity</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge @(detail.SparePart.Quantity == 0 ? "badge-danger" : detail.SparePart.Quantity <= 5 ? "badge-warning" : "badge-success") badge-lg">
+                                                @detail.SparePart.Quantity
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="input-group">
+                                                <input type="number"
+                                                       class="form-control approval-quantity"
+                                                       name="approvedQuantities[@i]"
+                                                       data-requested="@detail.RequestedQuantity"
+                                                       data-available="@detail.SparePart.Quantity"
+                                                       data-index="@i"
+                                                       value="@Math.Min(detail.RequestedQuantity, detail.SparePart.Quantity)"
+                                                       min="0"
+                                                       max="@Math.Min(detail.RequestedQuantity, detail.SparePart.Quantity)">
+                                                <div class="input-group-append">
+                                                    <button type="button" class="btn btn-outline-success btn-sm quick-approve" data-action="full" title="全部核准">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm quick-approve" data-action="none" title="不核准">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="status-indicator" id="status-@i">
+                                                <!-- 動態更新狀態 -->
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-light">
+                                    <th colspan="4">合計</th>
+                                    <th>
+                                        <span class="badge badge-primary badge-lg" id="totalRequested">
+                                            @Model.MaterialRequestDetails.Sum(d => d.RequestedQuantity)
+                                        </span>
+                                    </th>
+                                    <th></th>
+                                    <th>
+                                        <span class="badge badge-success badge-lg" id="totalApproved">0</span>
+                                    </th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- 審核決定 -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">審核決定</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
+                                                    <label class="btn btn-outline-success active">
+                                                        <input type="radio" name="approvalAction" value="approve" checked>
+                                                        <i class="fas fa-check"></i> 核准
+                                                    </label>
+                                                    <label class="btn btn-outline-danger">
+                                                        <input type="radio" name="approvalAction" value="reject">
+                                                        <i class="fas fa-times"></i> 駁回
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>快速操作:</label>
+                                                <div class="btn-group w-100">
+                                                    <button type="button" class="btn btn-outline-success btn-sm" id="approveAllBtn">
+                                                        <i class="fas fa-check-double"></i> 全部核准
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" id="approveAvailableBtn">
+                                                        <i class="fas fa-check-circle"></i> 核准有庫存
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" id="rejectAllBtn">
+                                                        <i class="fas fa-times-circle"></i> 全部拒絕
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group" id="rejectReasonGroup" style="display: none;">
+                                        <label for="rejectReason">駁回原因 <span class="text-danger">*</span></label>
+                                        <textarea id="rejectReason" class="form-control" rows="3" placeholder="請詳細說明駁回的原因..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info">
+                            <i class="fas fa-eye"></i> 查看詳情
+                        </a>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> 返回列表
+                        </a>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-success" id="submitApprovalBtn">
+                            <i class="fas fa-check"></i> 提交審核
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // 更新狀態指示器
+            function updateStatusIndicator(index) {
+                var input = $(`.approval-quantity[data-index="${index}"]`);
+                var approved = parseInt(input.val()) || 0;
+                var requested = parseInt(input.data('requested'));
+                var available = parseInt(input.data('available'));
+                var statusDiv = $(`#status-${index}`);
+
+                var html = '';
+                if (approved === 0) {
+                    html = '<span class="badge badge-danger">不核准</span>';
+                } else if (approved === requested) {
+                    html = '<span class="badge badge-success">全部核准</span>';
+                } else if (approved < requested) {
+                    html = '<span class="badge badge-warning">部分核准</span>';
+                }
+
+                if (approved > available) {
+                    html += '<br><small class="text-danger">超過庫存!</small>';
+                }
+
+                statusDiv.html(html);
+            }
+
+            // 更新總計
+            function updateTotals() {
+                var total = 0;
+                $('.approval-quantity').each(function() {
+                    total += parseInt($(this).val()) || 0;
+                });
+                $('#totalApproved').text(total);
+            }
+
+            // 初始化狀態
+            $('.approval-quantity').each(function() {
+                var index = $(this).data('index');
+                updateStatusIndicator(index);
+            });
+            updateTotals();
+
+            // 監聽數量變化
+            $(document).on('input change', '.approval-quantity', function() {
+                var index = $(this).data('index');
+                var value = parseInt($(this).val()) || 0;
+                var max = parseInt($(this).attr('max'));
+
+                // 驗證數量
+                if (value > max) {
+                    $(this).val(max);
+                    value = max;
+                }
+                if (value < 0) {
+                    $(this).val(0);
+                    value = 0;
+                }
+
+                updateStatusIndicator(index);
+                updateTotals();
+            });
+
+            // 快速核准按鈕
+            $(document).on('click', '.quick-approve', function() {
+                var action = $(this).data('action');
+                var row = $(this).closest('tr');
+                var input = row.find('.approval-quantity');
+                var index = input.data('index');
+
+                if (action === 'full') {
+                    var max = parseInt(input.attr('max'));
+                    input.val(max);
+                } else if (action === 'none') {
+                    input.val(0);
+                }
+
+                updateStatusIndicator(index);
+                updateTotals();
+            });
+
+            // 批次操作
+            $('#approveAllBtn').on('click', function() {
+                $('.approval-quantity').each(function() {
+                    var max = parseInt($(this).attr('max'));
+                    $(this).val(max);
+                    var index = $(this).data('index');
+                    updateStatusIndicator(index);
+                });
+                updateTotals();
+            });
+
+            $('#approveAvailableBtn').on('click', function() {
+                $('.approval-quantity').each(function() {
+                    var available = parseInt($(this).data('available'));
+                    var requested = parseInt($(this).data('requested'));
+                    var approve = Math.min(available, requested);
+                    if (available > 0) {
+                        $(this).val(approve);
+                    } else {
+                        $(this).val(0);
+                    }
+                    var index = $(this).data('index');
+                    updateStatusIndicator(index);
+                });
+                updateTotals();
+            });
+
+            $('#rejectAllBtn').on('click', function() {
+                $('.approval-quantity').val(0);
+                $('.approval-quantity').each(function() {
+                    var index = $(this).data('index');
+                    updateStatusIndicator(index);
+                });
+                updateTotals();
+                // 自動選擇駁回
+                $('input[name="approvalAction"][value="reject"]').prop('checked', true).closest('label').addClass('active');
+                $('input[name="approvalAction"][value="approve"]').closest('label').removeClass('active');
+                $('#rejectReasonGroup').show();
+            });
+
+            // 審核決定切換
+            $('input[name="approvalAction"]').on('change', function() {
+                if ($(this).val() === 'reject') {
+                    $('#rejectReasonGroup').show();
+                } else {
+                    $('#rejectReasonGroup').hide();
+                }
+            });
+
+            // 提交審核
+            $('#submitApprovalBtn').on('click', function() {
+                var action = $('input[name="approvalAction"]:checked').val();
+
+                if (action === 'reject') {
+                    var reason = $('#rejectReason').val().trim();
+                    if (!reason) {
+                        alert('請填寫駁回原因！');
+                        $('#rejectReason').focus();
+                        return;
+                    }
+
+                    if (confirm('確定要駁回此領料單嗎？')) {
+                        submitReject(reason);
+                    }
+                } else {
+                    // 檢查是否有項目核准
+                    var hasApproved = false;
+                    $('.approval-quantity').each(function() {
+                        if (parseInt($(this).val()) > 0) {
+                            hasApproved = true;
+                            return false;
+                        }
+                    });
+
+                    if (!hasApproved) {
+                        alert('請至少核准一個項目，或選擇駁回！');
+                        return;
+                    }
+
+                    // 檢查庫存
+                    var hasOverStock = false;
+                    $('.approval-quantity').each(function() {
+                        var approved = parseInt($(this).val()) || 0;
+                        var available = parseInt($(this).data('available'));
+                        if (approved > available) {
+                            hasOverStock = true;
+                            return false;
+                        }
+                    });
+
+                    if (hasOverStock) {
+                        alert('有項目的核准數量超過庫存，請檢查！');
+                        return;
+                    }
+
+                    if (confirm('確定要核准此領料單嗎？')) {
+                        submitApproval();
+                    }
+                }
+            });
+
+            // 提交核准
+            function submitApproval() {
+                var quantities = [];
+                $('.approval-quantity').each(function() {
+                    quantities.push(parseInt($(this).val()) || 0);
+                });
+
+                $.ajax({
+                    url: '@Url.Action("ApproveRequest", "MaterialRequest")',
+                    type: 'POST',
+                    data: {
+                        id: @Model.Id,
+                        approvedQuantities: quantities,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success || !response.success) { // 處理不同的回應格式
+                            alert('領料單核准成功！');
+                            window.location.href = '@Url.Action("Details", "MaterialRequest", new { id = Model.Id })';
+                        } else {
+                            alert('核准失敗：' + (response.message || '未知錯誤'));
+                        }
+                    },
+                    error: function() {
+                        alert('操作失敗，請重試！');
+                    }
+                });
+            }
+
+            // 提交駁回
+            function submitReject(reason) {
+                $.ajax({
+                    url: '@Url.Action("RejectRequest", "MaterialRequest")',
+                    type: 'POST',
+                    data: {
+                        id: @Model.Id,
+                        reason: reason,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success || !response.success) { // 處理不同的回應格式
+                            alert('領料單已駁回！');
+                            window.location.href = '@Url.Action("Details", "MaterialRequest", new { id = Model.Id })';
+                        } else {
+                            alert('駁回失敗：' + (response.message || '未知錯誤'));
+                        }
+                    },
+                    error: function() {
+                        alert('操作失敗，請重試！');
+                    }
+                });
+            }
+        });
+    </script>
+
+    @Html.AntiForgeryToken()
+}
