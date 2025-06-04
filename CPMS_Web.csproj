@@ -26,7 +26,6 @@
   <ItemGroup>
     <Folder Include="Services\" />
     <Folder Include="Views\Reports\" />
-    <Folder Include="Views\StockCount\" />
     <Folder Include="wwwroot\adminlte\" />
   </ItemGroup>
 
