@@ -25,7 +25,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Models\ViewModels\" />
     <Folder Include="Services\" />
     <Folder Include="Views\Inventory\" />
     <Folder Include="Views\MaterialRequest\" />

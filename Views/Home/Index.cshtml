@@ -1,0 +1,181 @@
+﻿@model DashboardViewModel
+@{
+    ViewData["Title"] = "儀表板";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-0">@ViewData["Title"]</h2>
+            <p class="text-muted">廠務備品管理系統概覽</p>
+        </div>
+    </div>
+
+    <!-- 統計卡片 -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">@Model.TotalSparePartsCount</h4>
+                            <p class="mb-0">總備品數量</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-boxes fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">@Model.TotalStockQuantity</h4>
+                            <p class="mb-0">總庫存數量</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-cubes fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">@Model.LowStockCount</h4>
+                            <p class="mb-0">低庫存備品</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">@Model.ZeroStockCount</h4>
+                            <p class="mb-0">零庫存備品</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-times-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 最近異動記錄 -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">最近異動記錄</h5>
+                    <a href="@Url.Action("Index", "Inventory")" class="btn btn-sm btn-outline-primary">查看全部</a>
+                </div>
+                <div class="card-body">
+                    @if (Model.RecentTransactions.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>時間</th>
+                                        <th>備品</th>
+                                        <th>類型</th>
+                                        <th>數量</th>
+                                        <th>原因</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var transaction in Model.RecentTransactions)
+                                    {
+                                        <tr>
+                                            <td>@transaction.TransactionDate.ToString("MM/dd HH:mm")</td>
+                                            <td>@transaction.SparePart?.Description</td>
+                                            <td>
+                                                @switch (transaction.TransactionType)
+                                                {
+                                                    case "IN":
+                                                        <span class="badge bg-success">入庫</span>
+                                                        break;
+                                                    case "OUT":
+                                                        <span class="badge bg-danger">出庫</span>
+                                                        break;
+                                                    case "ADJUST":
+                                                        <span class="badge bg-warning">調整</span>
+                                                        break;
+                                                    default:
+                                                        <span class="badge bg-secondary">@transaction.TransactionType</span>
+                                                        break;
+                                                }
+                                            </td>
+                                            <td class="@(transaction.Quantity > 0 ? "text-success" : "text-danger")">
+                                                @(transaction.Quantity > 0 ? "+" : "")@transaction.Quantity
+                                            </td>
+                                            <td>@transaction.Reason</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">暫無異動記錄</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- 待處理事項和統計 -->
+        <div class="col-lg-4 mb-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">待處理事項</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>待審核領料單</span>
+                        <span class="badge bg-warning">@Model.PendingRequestsCount</span>
+                    </div>
+                    @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                    {
+                        <a href="@Url.Action("Index", "MaterialRequest", new { status = "PENDING" })" class="btn btn-sm btn-outline-primary">前往處理</a>
+                    }
+                </div>
+            </div>
+
+            @if (Model.CategoryStatistics.Any())
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">庫存分類統計</h5>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var category in Model.CategoryStatistics.Take(5))
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>@category.Key</span>
+                                <span class="badge bg-info">@category.Value</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

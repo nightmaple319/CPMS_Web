@@ -11,17 +11,17 @@
             <form method="get" class="row g-3">
                 <div class="col-md-4">
                     <label for="startDate" class="form-label">開始日期</label>
-                    <input type="date" class="form-control" id="startDate" name="startDate" 
+                    <input type="date" class="form-control" id="startDate" name="startDate"
                            value="@(ViewBag.StartDate ?? DateTime.Today.AddMonths(-1).ToString("yyyy-MM-dd"))">
                 </div>
                 <div class="col-md-4">
                     <label for="endDate" class="form-label">結束日期</label>
-                    <input type="date" class="form-control" id="endDate" name="endDate" 
+                    <input type="date" class="form-control" id="endDate" name="endDate"
                            value="@(ViewBag.EndDate ?? DateTime.Today.ToString("yyyy-MM-dd"))">
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">查詢</button>
-                    <a href="@Url.Action("ExportInventoryReport", new { startDate = ViewBag.StartDate, endDate = ViewBag.EndDate })" 
+                    <a href="@Url.Action("ExportInventoryReport", new { startDate = ViewBag.StartDate, endDate = ViewBag.EndDate })"
                        class="btn btn-success">匯出 Excel</a>
                 </div>
             </form>
@@ -39,8 +39,6 @@
                             <th>料件名稱</th>
                             <th>交易類型</th>
                             <th>數量</th>
-                            <th>單價</th>
-                            <th>總金額</th>
                             <th>備註</th>
                         </tr>
                     </thead>
@@ -48,14 +46,36 @@
                         @foreach (var item in Model)
                         {
                             <tr>
-                                <td>@item.TransactionDate.ToString("yyyy-MM-dd")</td>
+                                <td>@item.TransactionDate.ToString("yyyy-MM-dd HH:mm")</td>
                                 <td>@item.SparePartId</td>
                                 <td>@item.SparePartName</td>
-                                <td>@item.TransactionType</td>
-                                <td>@item.Quantity</td>
-                                <td>@item.UnitPrice.ToString("N2")</td>
-                                <td>@item.TotalAmount.ToString("N2")</td>
+                                <td>
+                                    @switch (item.TransactionType)
+                                    {
+                                        case "IN":
+                                            <span class="badge bg-success">入庫</span>
+                                            break;
+                                        case "OUT":
+                                            <span class="badge bg-danger">出庫</span>
+                                            break;
+                                        case "ADJUST":
+                                            <span class="badge bg-warning">調整</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary">@item.TransactionType</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="@(item.Quantity > 0 ? "text-success" : "text-danger")">
+                                    @(item.Quantity > 0 ? "+" : "")@item.Quantity
+                                </td>
                                 <td>@item.Remarks</td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">查詢期間內無異動記錄</td>
                             </tr>
                         }
                     </tbody>
@@ -63,4 +83,4 @@
             </div>
         </div>
     </div>
-</div> 
+</div>

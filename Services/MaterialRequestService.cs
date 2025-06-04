@@ -21,7 +21,7 @@ namespace CPMS_Web.Services
             var query = _context.MaterialRequests
                 .Include(r => r.Requester)
                 .Include(r => r.Approver)
-                .Include(r => r.Details)
+                .Include(r => r.MaterialRequestDetails)
                     .ThenInclude(d => d.SparePart)
                 .AsQueryable();
 
@@ -43,7 +43,7 @@ namespace CPMS_Web.Services
             return await _context.MaterialRequests
                 .Include(r => r.Requester)
                 .Include(r => r.Approver)
-                .Include(r => r.Details)
+                .Include(r => r.MaterialRequestDetails)
                     .ThenInclude(d => d.SparePart)
                 .FirstOrDefaultAsync(r => r.Id == id);
         }
@@ -53,6 +53,7 @@ namespace CPMS_Web.Services
             try
             {
                 request.RequestDate = DateTime.Now;
+                request.CreatedDate = DateTime.Now;
                 request.Status = "PENDING";
                 request.RequestNo = await GenerateRequestNoAsync();
 
@@ -80,23 +81,23 @@ namespace CPMS_Web.Services
             try
             {
                 var request = await _context.MaterialRequests
-                    .Include(r => r.Details)
+                    .Include(r => r.MaterialRequestDetails)
                     .FirstOrDefaultAsync(r => r.Id == requestId);
 
                 if (request == null || request.Status != "PENDING") return false;
 
                 // 更新核准數量
-                for (int i = 0; i < request.Details.Count; i++)
+                for (int i = 0; i < request.MaterialRequestDetails.Count; i++)
                 {
                     if (i < approvedQuantities.Count)
                     {
-                        request.Details[i].ApprovedQuantity = approvedQuantities[i];
+                        request.MaterialRequestDetails.ElementAt(i).ApprovedQuantity = approvedQuantities[i];
                     }
                 }
 
                 request.Status = "APPROVED";
                 request.ApproverId = approverId;
-                request.ApproveDate = DateTime.Now;
+                request.ApprovalDate = DateTime.Now; // 修正：從 ApproveDate 改為 ApprovalDate
 
                 await _context.SaveChangesAsync();
                 return true;
@@ -116,7 +117,7 @@ namespace CPMS_Web.Services
 
                 request.Status = "REJECTED";
                 request.ApproverId = rejectorId;
-                request.ApproveDate = DateTime.Now;
+                request.ApprovalDate = DateTime.Now; // 修正：從 ApproveDate 改為 ApprovalDate
                 request.RejectReason = reason;
 
                 await _context.SaveChangesAsync();
@@ -133,13 +134,13 @@ namespace CPMS_Web.Services
             try
             {
                 var request = await _context.MaterialRequests
-                    .Include(r => r.Details)
+                    .Include(r => r.MaterialRequestDetails)
                     .FirstOrDefaultAsync(r => r.Id == requestId);
 
                 if (request == null || request.Status != "APPROVED") return false;
 
                 // 檢查庫存是否足夠
-                foreach (var detail in request.Details)
+                foreach (var detail in request.MaterialRequestDetails)
                 {
                     var sparePart = await _inventoryService.GetSparePartAsync(detail.SparePartNo);
                     if (sparePart == null || sparePart.Quantity < detail.ApprovedQuantity)
@@ -149,7 +150,7 @@ namespace CPMS_Web.Services
                 }
 
                 // 扣減庫存
-                foreach (var detail in request.Details)
+                foreach (var detail in request.MaterialRequestDetails)
                 {
                     var sparePart = await _inventoryService.GetSparePartAsync(detail.SparePartNo);
                     if (sparePart != null)
@@ -161,6 +162,8 @@ namespace CPMS_Web.Services
                             $"領料單出庫: {request.RequestNo}",
                             issuerId
                         );
+
+                        detail.IssuedQuantity = detail.ApprovedQuantity;
                     }
                 }
 
@@ -181,7 +184,7 @@ namespace CPMS_Web.Services
         {
             return await _context.MaterialRequests
                 .Include(r => r.Requester)
-                .Include(r => r.Details)
+                .Include(r => r.MaterialRequestDetails)
                     .ThenInclude(d => d.SparePart)
                 .Where(r => r.Status == "PENDING")
                 .OrderByDescending(r => r.RequestDate)
@@ -193,7 +196,7 @@ namespace CPMS_Web.Services
             return await _context.MaterialRequests
                 .Include(r => r.Requester)
                 .Include(r => r.Approver)
-                .Include(r => r.Details)
+                .Include(r => r.MaterialRequestDetails)
                     .ThenInclude(d => d.SparePart)
                 .Where(r => r.RequesterId == userId)
                 .OrderByDescending(r => r.RequestDate)
@@ -211,7 +214,7 @@ namespace CPMS_Web.Services
             // 取得期間內的領料單
             var requests = await _context.MaterialRequests
                 .Include(r => r.Requester)
-                .Include(r => r.Details)
+                .Include(r => r.MaterialRequestDetails)
                     .ThenInclude(d => d.SparePart)
                 .Where(r => r.RequestDate >= startDate && r.RequestDate <= endDate)
                 .ToListAsync();
@@ -236,7 +239,7 @@ namespace CPMS_Web.Services
 
             // 計算各類別的領料統計
             report.CategoryStatistics = requests
-                .SelectMany(r => r.Details)
+                .SelectMany(r => r.MaterialRequestDetails)
                 .GroupBy(d => d.SparePart.Category)
                 .Select(g => new CategoryRequestStat
                 {
@@ -254,7 +257,7 @@ namespace CPMS_Web.Services
         {
             var today = DateTime.Now;
             var prefix = $"MR{today:yyyyMMdd}";
-            
+
             var lastRequest = await _context.MaterialRequests
                 .Where(r => r.RequestNo.StartsWith(prefix))
                 .OrderByDescending(r => r.RequestNo)
@@ -269,4 +272,4 @@ namespace CPMS_Web.Services
             return $"{prefix}{(lastNumber + 1):D3}";
         }
     }
-} 
+}

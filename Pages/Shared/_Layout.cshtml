@@ -1,45 +1,177 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - CPMS_Web</title>
+    <title>@ViewData["Title"] - 廠務備品管理系統</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/CPMS_Web.styles.css" asp-append-version="true" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
             <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">CPMS_Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                    <i class="fas fa-tools me-2"></i>廠務備品管理系統
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
-                        </li>
-                    </ul>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    @if (User.Identity!.IsAuthenticated)
+                    {
+                        <ul class="navbar-nav me-auto">
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Home" asp-action="Index">
+                                    <i class="fas fa-tachometer-alt me-1"></i>儀表板
+                                </a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="inventoryDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-boxes me-1"></i>庫存管理
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="inventoryDropdown">
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Inventory" asp-action="Index">
+                                            <i class="fas fa-search me-1"></i>庫存查詢
+                                        </a>
+                                    </li>
+                                    @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                                    {
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Inventory" asp-action="Create">
+                                                <i class="fas fa-plus me-1"></i>新增備品
+                                            </a>
+                                        </li>
+                                    }
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="materialDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-clipboard-list me-1"></i>領料管理
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="materialDropdown">
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="MaterialRequest" asp-action="Index">
+                                            <i class="fas fa-list me-1"></i>領料單列表
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="MaterialRequest" asp-action="Create">
+                                            <i class="fas fa-plus me-1"></i>建立領料單
+                                        </a>
+                                    </li>
+                                    @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                                    {
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="MaterialRequest" asp-action="Index" asp-route-status="PENDING">
+                                                <i class="fas fa-clock me-1"></i>待審核
+                                            </a>
+                                        </li>
+                                    }
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="stockCountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-clipboard-check me-1"></i>盤點管理
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="stockCountDropdown">
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="StockCount" asp-action="Index">
+                                            <i class="fas fa-list me-1"></i>盤點單列表
+                                        </a>
+                                    </li>
+                                    @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                                    {
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="StockCount" asp-action="Create">
+                                                <i class="fas fa-plus me-1"></i>建立盤點單
+                                            </a>
+                                        </li>
+                                    }
+                                </ul>
+                            </li>
+                            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Manager"))
+                            {
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-chart-bar me-1"></i>報表管理
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Reports" asp-action="InventoryReport">
+                                                <i class="fas fa-warehouse me-1"></i>庫存報表
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Reports" asp-action="MaterialRequestReport">
+                                                <i class="fas fa-file-alt me-1"></i>領料報表
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Reports" asp-action="StockCountReport">
+                                                <i class="fas fa-tasks me-1"></i>盤點報表
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
+                            }
+                        </ul>
+                    }
                     <partial name="_LoginPartial" />
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+
+    <div class="container-fluid">
+        <main role="main" class="py-3">
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["Warning"] != null)
+            {
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>@TempData["Warning"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["Info"] != null)
+            {
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>@TempData["Info"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
+    <footer class="border-top footer text-muted bg-light mt-4">
         <div class="container">
-            &copy; 2025 - CPMS_Web - <a asp-area="" asp-page="/Privacy">Privacy</a>
+            <div class="row py-3">
+                <div class="col-md-6">
+                    <p>&copy; 2025 - 廠務備品管理系統 - 版權所有</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <small>聯絡資訊：admin@company.com</small>
+                </div>
+            </div>
         </div>
     </footer>
 

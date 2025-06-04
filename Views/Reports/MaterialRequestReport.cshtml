@@ -11,17 +11,17 @@
             <form method="get" class="row g-3">
                 <div class="col-md-4">
                     <label for="startDate" class="form-label">開始日期</label>
-                    <input type="date" class="form-control" id="startDate" name="startDate" 
+                    <input type="date" class="form-control" id="startDate" name="startDate"
                            value="@(ViewBag.StartDate ?? DateTime.Today.AddMonths(-1).ToString("yyyy-MM-dd"))">
                 </div>
                 <div class="col-md-4">
                     <label for="endDate" class="form-label">結束日期</label>
-                    <input type="date" class="form-control" id="endDate" name="endDate" 
+                    <input type="date" class="form-control" id="endDate" name="endDate"
                            value="@(ViewBag.EndDate ?? DateTime.Today.ToString("yyyy-MM-dd"))">
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">查詢</button>
-                    <a href="@Url.Action("ExportMaterialRequestReport", new { startDate = ViewBag.StartDate, endDate = ViewBag.EndDate })" 
+                    <a href="@Url.Action("ExportMaterialRequestReport", new { startDate = ViewBag.StartDate, endDate = ViewBag.EndDate })"
                        class="btn btn-success">匯出 Excel</a>
                 </div>
             </form>
@@ -40,7 +40,6 @@
                             <th>部門</th>
                             <th>狀態</th>
                             <th>項目數量</th>
-                            <th>總金額</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -51,9 +50,33 @@
                                 <td>@item.RequestNumber</td>
                                 <td>@item.RequesterName</td>
                                 <td>@item.Department</td>
-                                <td>@item.Status</td>
+                                <td>
+                                    @switch (item.Status)
+                                    {
+                                        case "PENDING":
+                                            <span class="badge bg-warning">待審核</span>
+                                            break;
+                                        case "APPROVED":
+                                            <span class="badge bg-success">已核准</span>
+                                            break;
+                                        case "REJECTED":
+                                            <span class="badge bg-danger">已駁回</span>
+                                            break;
+                                        case "ISSUED":
+                                            <span class="badge bg-info">已出庫</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary">@item.Status</span>
+                                            break;
+                                    }
+                                </td>
                                 <td>@item.TotalItems</td>
-                                <td>@item.TotalAmount.ToString("N2")</td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">查詢期間內無申請記錄</td>
                             </tr>
                         }
                     </tbody>
@@ -61,4 +84,4 @@
             </div>
         </div>
     </div>
-</div> 
+</div>

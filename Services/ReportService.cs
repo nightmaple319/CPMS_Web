@@ -22,16 +22,18 @@ namespace CPMS_Web.Services
         public async Task<IEnumerable<InventoryReport>> GetInventoryReportAsync(DateTime startDate, DateTime endDate)
         {
             return await _context.InventoryTransactions
+                .Include(t => t.SparePart)
+                .Include(t => t.User)
                 .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate)
                 .Select(t => new InventoryReport
                 {
                     TransactionDate = t.TransactionDate,
-                    SparePartId = t.SparePartId,
-                    SparePartName = t.SparePart.Name,
+                    SparePartId = t.SparePartNo.ToString(),
+                    SparePartName = t.SparePart.Description,
                     TransactionType = t.TransactionType,
                     Quantity = t.Quantity,
-                    UnitPrice = t.UnitPrice,
-                    TotalAmount = t.Quantity * t.UnitPrice,
+                    UnitPrice = 0, // 暫時設為0，因為模型中沒有單價欄位
+                    TotalAmount = 0, // 暫時設為0
                     Remarks = t.Remarks
                 })
                 .ToListAsync();
@@ -40,16 +42,18 @@ namespace CPMS_Web.Services
         public async Task<IEnumerable<MaterialRequestReport>> GetMaterialRequestReportAsync(DateTime startDate, DateTime endDate)
         {
             return await _context.MaterialRequests
+                .Include(mr => mr.Requester)
+                .Include(mr => mr.MaterialRequestDetails)
                 .Where(mr => mr.RequestDate >= startDate && mr.RequestDate <= endDate)
                 .Select(mr => new MaterialRequestReport
                 {
                     RequestDate = mr.RequestDate,
-                    RequestNumber = mr.RequestNumber,
-                    RequesterName = mr.Requester.UserName,
+                    RequestNumber = mr.RequestNo,
+                    RequesterName = mr.Requester.UserName ?? "",
                     Department = mr.Department,
                     Status = mr.Status,
-                    TotalItems = mr.MaterialRequestItems.Count,
-                    TotalAmount = mr.MaterialRequestItems.Sum(item => item.Quantity * item.UnitPrice)
+                    TotalItems = mr.MaterialRequestDetails.Count,
+                    TotalAmount = 0 // 暫時設為0，因為沒有價格資訊
                 })
                 .ToListAsync();
         }
@@ -57,17 +61,19 @@ namespace CPMS_Web.Services
         public async Task<IEnumerable<StockCountReport>> GetStockCountReportAsync(DateTime startDate, DateTime endDate)
         {
             return await _context.StockCounts
+                .Include(sc => sc.Counter)
+                .Include(sc => sc.StockCountDetails)
                 .Where(sc => sc.CountDate >= startDate && sc.CountDate <= endDate)
                 .Select(sc => new StockCountReport
                 {
                     CountDate = sc.CountDate,
-                    CountNumber = sc.CountNumber,
-                    CounterName = sc.Counter.Name,
+                    CountNumber = sc.CountNo,
+                    CounterName = sc.Counter.UserName ?? "",
                     Status = sc.Status,
-                    TotalItems = sc.StockCountItems.Count,
-                    SystemQuantity = sc.StockCountItems.Sum(item => item.SystemQuantity),
-                    ActualQuantity = sc.StockCountItems.Sum(item => item.ActualQuantity),
-                    Variance = sc.StockCountItems.Sum(item => item.ActualQuantity - item.SystemQuantity)
+                    TotalItems = sc.StockCountDetails.Count,
+                    SystemQuantity = sc.StockCountDetails.Sum(item => item.SystemQuantity),
+                    ActualQuantity = sc.StockCountDetails.Sum(item => item.CountedQuantity),
+                    Variance = sc.StockCountDetails.Sum(item => item.CountedQuantity - item.SystemQuantity)
                 })
                 .ToListAsync();
         }
@@ -78,16 +84,14 @@ namespace CPMS_Web.Services
             using (var workbook = new XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Inventory Report");
-                
+
                 // Add headers
                 worksheet.Cell(1, 1).Value = "Transaction Date";
                 worksheet.Cell(1, 2).Value = "Spare Part ID";
                 worksheet.Cell(1, 3).Value = "Spare Part Name";
                 worksheet.Cell(1, 4).Value = "Transaction Type";
                 worksheet.Cell(1, 5).Value = "Quantity";
-                worksheet.Cell(1, 6).Value = "Unit Price";
-                worksheet.Cell(1, 7).Value = "Total Amount";
-                worksheet.Cell(1, 8).Value = "Remarks";
+                worksheet.Cell(1, 6).Value = "Remarks";
 
                 // Add data
                 int row = 2;
@@ -98,9 +102,7 @@ namespace CPMS_Web.Services
                     worksheet.Cell(row, 3).Value = item.SparePartName;
                     worksheet.Cell(row, 4).Value = item.TransactionType;
                     worksheet.Cell(row, 5).Value = item.Quantity;
-                    worksheet.Cell(row, 6).Value = item.UnitPrice;
-                    worksheet.Cell(row, 7).Value = item.TotalAmount;
-                    worksheet.Cell(row, 8).Value = item.Remarks;
+                    worksheet.Cell(row, 6).Value = item.Remarks;
                     row++;
                 }
 
@@ -118,7 +120,7 @@ namespace CPMS_Web.Services
             using (var workbook = new XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Material Request Report");
-                
+
                 // Add headers
                 worksheet.Cell(1, 1).Value = "Request Date";
                 worksheet.Cell(1, 2).Value = "Request Number";
@@ -126,7 +128,6 @@ namespace CPMS_Web.Services
                 worksheet.Cell(1, 4).Value = "Department";
                 worksheet.Cell(1, 5).Value = "Status";
                 worksheet.Cell(1, 6).Value = "Total Items";
-                worksheet.Cell(1, 7).Value = "Total Amount";
 
                 // Add data
                 int row = 2;
@@ -138,7 +139,6 @@ namespace CPMS_Web.Services
                     worksheet.Cell(row, 4).Value = item.Department;
                     worksheet.Cell(row, 5).Value = item.Status;
                     worksheet.Cell(row, 6).Value = item.TotalItems;
-                    worksheet.Cell(row, 7).Value = item.TotalAmount;
                     row++;
                 }
 
@@ -156,7 +156,7 @@ namespace CPMS_Web.Services
             using (var workbook = new XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Stock Count Report");
-                
+
                 // Add headers
                 worksheet.Cell(1, 1).Value = "Count Date";
                 worksheet.Cell(1, 2).Value = "Count Number";
@@ -190,4 +190,4 @@ namespace CPMS_Web.Services
             }
         }
     }
-} 
+}
